@@ -258,11 +258,15 @@ step. Your notes and the wiki are never touched.
       and the run prompt, and commits on a `binnacle-update/<id>` branch
       through the pre-commit scan. `wiki/`, `raw/`, `soundings/` and
       `audit/` are never touched: an upstream change there is listed for
-      you to copy by hand.
+      you to copy by hand. If git still tracks anything under the
+      local-only `.binnacle/` folder, the branch also untracks it, after
+      backing the files up to `.git/binnacle-local-backup/<id>/`.
 - [ ] **[work machine, human]** Local only, `main` is fast-forwarded and
       the new base recorded: done. Connected, it pushes the branch and
       opens a PR **without auto-merge**: review it and merge it yourself,
-      then pull `main`. The next `update.sh` run sees the merged PR and
+      then pull `main`. If it untracked `.binnacle/`, that pull deletes
+      the files from disk: put them back with the `cp` command it printed
+      (on any other clone, copy `.binnacle/` aside before pulling). The next `update.sh` run sees the merged PR and
       records the new base (a closed, unmerged PR leaves the base as it
       was). It refuses while that PR, or any other update PR, is open.
 - [ ] **[work machine, human]** It refuses `~/binnacle`, which is updated
