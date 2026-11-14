@@ -1032,6 +1032,13 @@ check "mover: refuses a synced folder inside the vault" expect_fail mover --sync
 git -C "$FV" config --unset binnacle.formsSyncDir
 check "mover: refuses without a synced folder" expect_fail mover
 check "mover: says how to set it" grep -q 'binnacle.formsSyncDir' "$T/mover.out"
+check "mover: no tracked-settings warning while .binnacle/ is untracked" bash -c '! grep -q "is tracked by git" "$1"' _ "$T/mover.out"
+git -C "$FV" add -f .binnacle/forms/team-pulse.conf
+check "mover: tracked settings only warn, never refuse" mover --sync-dir "$SY" team-pulse
+check "mover: the warning names the tracked file and the untrack command" bash -c \
+  'grep -q "WARN .binnacle/forms/team-pulse.conf is tracked by git" "$1" && grep -q "rm -r --cached .binnacle" "$1"' _ "$T/mover.out"
+check "mover: the warning prints no settings" bash -c '! grep -q "Team pulse\|pulse-1" "$1"' _ "$T/mover.out"
+git -C "$FV" rm -q --cached .binnacle/forms/team-pulse.conf
 check "mover: .binnacle/ is gitignored" bash -c 'git -C "$1" check-ignore -q .binnacle/forms-stoplist && test -z "$(git -C "$1" status --porcelain -- .binnacle)"' _ "$FV"
 
 # --- survey intake: bin/binnacle-forms-google-pull (stubbed Google) ------------------------
@@ -1707,6 +1714,36 @@ if [ "$template_rules" = yes ]; then
   check "update local: re-run is already up to date" grep -q 'already up to date' "$T/upd.out"
   check "update local: re-run adds no commit" test "$(git -C "$U" rev-list --count "$main_before..main")" = 1
 
+  # .binnacle/ committed before .gitignore listed it: even an up-to-date
+  # brain gets it untracked, and its files stay on disk.
+  mklocal() { # vault -> tracked .binnacle/ files, committed
+    mkdir -p "$1/.binnacle/forms"
+    printf 'Zed Quillfeather\n' >"$1/.binnacle/forms-stoplist"
+    printf 'form_title=Secret pulse\n' >"$1/.binnacle/forms/pulse.conf"
+    git -C "$1" add -f .binnacle
+    git -C "$1" commit -qm 'auto backup'
+  }
+  local_sum() { (cd "$1/.binnacle" && find . -type f -exec cksum {} + | LC_ALL=C sort); }
+  mklocal "$U"
+  u_local=$(local_sum "$U")
+  u_main=$(git -C "$U" rev-parse main)
+  check "update local: untracks .binnacle/ when up to date" upd "$U"
+  check "update local: .binnacle/ no longer tracked" test -z "$(git -C "$U" ls-files .binnacle)"
+  check "update local: one untrack commit on main" bash -c \
+    'test "$(git -C "$1" rev-list --count "$2..main")" = 1 && git -C "$1" log -1 --format=%s main | grep -q "stop tracking .binnacle/"' _ "$U" "$u_main"
+  check "update local: .binnacle/ files kept on disk, unchanged" test "$(local_sum "$U")" = "$u_local"
+  check "update local: clean tree after untracking" test -z "$(git -C "$U" status --porcelain)"
+  check "update local: names the untracked files and the backup" bash -c \
+    'grep -q "^    .binnacle/forms-stoplist" "$1" && grep -q "^    .binnacle/forms/pulse.conf" "$1" && grep -q "backed up to .*/binnacle-local-backup/" "$1" && grep -q "back on disk" "$1"' _ "$T/upd.out"
+  check "update local: backup outside the working tree holds the files" bash -c \
+    'b=$(sed -n "s/.*backed up to \(.*\) (outside.*/\1/p" "$1") && case $b in "$2"/.git/*) ;; *) exit 1 ;; esac && test "$(cd "$b/.binnacle" && find . -type f -exec cksum {} + | LC_ALL=C sort)" = "$3"' \
+    _ "$T/upd.out" "$(cd "$U" && pwd -P)" "$u_local"
+  check "update local: prints no .binnacle/ contents" bash -c '! grep -q "Quillfeather\|Secret pulse" "$1"' _ "$T/upd.out"
+  check "update local: no branch or worktree left after untracking" bash -c \
+    'test -z "$(git -C "$1" branch --list "binnacle-update/*")" && test "$(git -C "$1" worktree list | wc -l | tr -d " ")" = 1' _ "$U"
+  check "update local: re-run after untracking is up to date" bash -c 'env HOME="$1" "$2/setup/work-brain/update.sh" "$3" >"$4" 2>&1 && grep -q "already up to date" "$4"' \
+    _ "$WH" "$TPL" "$U" "$T/upd.out"
+
   # A file the template adds over one the vault already has is refused.
   mkdir -p "$TPL/.obsidian"
   printf '{"template": true}\n' >"$TPL/.obsidian/app.json"
@@ -1722,6 +1759,8 @@ if [ "$template_rules" = yes ]; then
   git init -q --bare "$BRU"
   git -C "$UR" remote add origin "$BRU"
   git -C "$UR" config binnacle.remoteUrl "$BRU"
+  mklocal "$UR"
+  ur_local=$(local_sum "$UR")
   git -C "$UR" push -q origin main
   git -C "$UR" config --unset binnacle.localOnly
   git -C "$UR" config --unset binnacle.templateBase
@@ -1761,6 +1800,14 @@ if [ "$template_rules" = yes ]; then
   check "update connected: PR body says not auto-merged" grep -q 'Not auto-merged' "$T/pr-body.md"
   check "update connected: new base pending until merged" bash -c \
     'test "$(git -C "$1" config binnacle.templateBasePending)" = "$2" && ! git -C "$1" config binnacle.templateBase' _ "$UR" "$tpl_head"
+  check "update connected: branch untracks .binnacle/" bash -c \
+    'test -n "$(git -C "$1" ls-tree -r main -- .binnacle)" && test -z "$(git -C "$1" ls-tree -r "$2" -- .binnacle)"' _ "$BRU" "$(update_ref)"
+  check "update connected: .binnacle/ files untouched on disk" test "$(local_sum "$UR")" = "$ur_local"
+  check "update connected: PR body says .binnacle/ is untracked" grep -q '`.binnacle/` (local-only forms settings) untracked' "$T/pr-body.md"
+  check "update connected: says how to put .binnacle/ back after the pull" \
+    grep -q "pulling the merged PR deletes the .binnacle/ files.*cp -Rp '.*/\.git/binnacle-local-backup/[^']*/\.binnacle' '$(cd "$UR" && pwd -P)/'" "$T/upd.out"
+  check "update connected: prints no .binnacle/ contents" bash -c '! grep -q "Quillfeather\|Secret pulse" "$1" "$2"' _ "$T/upd.out" "$T/pr-body.md"
+  ur_restore=$(sed -n "s/.*Put them back right after the pull: \(cp -Rp '[^']*' '[^']*'\).*/\1/p" "$T/upd.out")
   check "update connected: no local branch or worktree left" bash -c \
     'test -z "$(git -C "$1" branch --list "binnacle-update/*")" && test "$(git -C "$1" worktree list | wc -l | tr -d " ")" = 1' _ "$UR"
   check "update connected: refuses while the update PR is open" expect_fail env STUB_GH_PR_STATE=OPEN HOME="$WH" \
@@ -1768,6 +1815,10 @@ if [ "$template_rules" = yes ]; then
   check "update connected: says the update PR is still open" grep -q 'update PR (binnacle-update/.*) is still open' "$T/upd.out"
   git -C "$BRU" update-ref refs/heads/main "refs/heads/$(update_ref)"
   git -C "$UR" pull -q --ff-only origin main
+  check "update connected: the pull deletes the .binnacle/ files, as the output warned" test ! -e "$UR/.binnacle/forms-stoplist"
+  check "update connected: the printed command puts them back" bash -c 'eval "$1" && test "$(cd "$2/.binnacle" && find . -type f -exec cksum {} + | LC_ALL=C sort)" = "$3"' \
+    _ "$ur_restore" "$UR" "$ur_local"
+  check "update connected: restored files stay untracked" test -z "$(git -C "$UR" status --porcelain)"
   check "update connected: after the merge, exits 0" env STUB_GH_PR_STATE=MERGED HOME="$WH" \
     bash -c '"$1/setup/work-brain/update.sh" "$2" >"$3" 2>&1' _ "$TPL" "$UR" "$T/upd.out"
   check "update connected: after the merge, already up to date" grep -q 'already up to date' "$T/upd.out"

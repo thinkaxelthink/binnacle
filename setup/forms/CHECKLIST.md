@@ -143,6 +143,11 @@ policies (HR, privacy, retention); they win over this checklist.
       List the names of everyone who might be mentioned in answers (your
       team, other colleagues, customers) and any other word that must
       never reach the vault. A survey's subject is exempt even when listed.
+- [ ] **[work machine, human]** Check git does not track `.binnacle/`:
+      `git -C ~/binnacle-acme-engineering-jdoe ls-files .binnacle` must
+      print nothing. If it lists files, untrack them (they stay on disk)
+      with `git -C ~/binnacle-acme-engineering-jdoe rm -r --cached .binnacle`
+      and commit.
 
 ## Each collection window
 
