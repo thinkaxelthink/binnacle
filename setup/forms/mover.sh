@@ -69,6 +69,16 @@ done
 
 [ -n "$vault" ] || vault=$(git -C "$here/../.." rev-parse --show-toplevel)
 [ -d "$vault/raw/inbox" ] || bn_die "$vault is not a Binnacle vault (no raw/inbox/)"
+# .binnacle/ is local only, but files committed before .gitignore listed it
+# stay tracked, and every commit or automatic backup then pushes them.
+# Warn, never refuse.
+tracked=$(git -C "$vault" ls-files -- .binnacle 2>/dev/null || true)
+if [ -n "$tracked" ]; then
+  while IFS= read -r p; do
+    bn_warn "$p is tracked by git, so commits and automatic backups push it; .binnacle/ is meant to stay on this machine"
+  done <<<"$tracked"
+  bn_warn "stop tracking it, keeping the files: git -C $vault rm -r --cached .binnacle, then commit (on a work brain, setup/work-brain/update.sh does both). A clone that pulls that commit loses its .binnacle/ files from disk: copy them aside there first"
+fi
 [ -n "$sync_dir" ] || sync_dir=$(git -C "$vault" config --get binnacle.formsSyncDir || true)
 [ -n "$sync_dir" ] \
   || bn_die "no synced folder: set it once with git -C $vault config binnacle.formsSyncDir <folder> (setup/forms/CHECKLIST.md)"

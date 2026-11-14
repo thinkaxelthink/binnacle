@@ -24,6 +24,13 @@
 #      - connected: pushes the branch and opens a PR, never auto-merged. The
 #        new base is recorded as pending and becomes the base when the next
 #        run of this script finds the PR merged.
+# If git still tracks anything under .binnacle/ (the local-only forms
+# settings and stop-list, committed before .gitignore listed the folder),
+# the same branch also untracks it (git rm -r --cached), even when nothing
+# changed upstream. The files are first copied to
+# .git/binnacle-local-backup/<id>/, outside the working tree. Local only,
+# they are put back after main is fast-forwarded; connected, the output
+# says how to put them back once pulling the merged PR has deleted them.
 # It refuses ~/binnacle (or anything resolving into it), a folder that is
 # not a work-brain vault, a vault with uncommitted changes or off main, a
 # connected vault whose main differs from origin's, a waiting
@@ -78,6 +85,10 @@ local_only=0
 waiting=$(git -C "$vault" for-each-ref --format='%(refname:short)' 'refs/heads/binnacle-update/*' | tr '\n' ' ')
 [ -z "$waiting" ] \
   || bn_die "refusing: a branch is still waiting: $waiting- merge it into $BASE or delete it first"
+# Local-only files git still tracks (committed before .gitignore listed
+# .binnacle/): the update branch untracks them.
+local_files=()
+while IFS= read -r -d '' p; do local_files+=("$p"); done < <(git -C "$vault" ls-files -z -- .binnacle)
 
 if [ "$local_only" -eq 0 ]; then
   git -C "$vault" remote get-url origin >/dev/null 2>&1 \
@@ -137,7 +148,7 @@ git -C "$src" merge-base --is-ancestor "$base" "$head" \
   || bn_die "refusing: this checkout's HEAD does not contain the vault's base $base_rev; check out main and pull the template"
 bn_ok "base $(git -C "$src" rev-parse --short "$base") (from $base_from)"
 
-if [ "$base" = "$head" ]; then
+if [ "$base" = "$head" ] && [ "${#local_files[@]}" -eq 0 ]; then
   git -C "$vault" config binnacle.templateBase "$head"
   bn_ok "already up to date; binnacle.templateBase = $head"
   exit 0
@@ -228,7 +239,7 @@ for p in ${skipped[@]+"${skipped[@]}"}; do
   bn_warn "not applied (content zone, never touched): $p changed upstream; copy it by hand if you want it"
 done
 
-if [ "${#summary[@]}" -eq 0 ]; then
+if [ "${#summary[@]}" -eq 0 ] && [ "${#local_files[@]}" -eq 0 ]; then
   git -C "$vault" config binnacle.templateBase "$head"
   bn_ok "no template file changed upstream outside the content zones; binnacle.templateBase = $head"
   finished=1
@@ -239,7 +250,23 @@ fi
 run_id=$(date -u +%Y%m%dT%H%M%SZ)
 short_base=$(git -C "$src" rev-parse --short "$base")
 short_head=$(git -C "$src" rev-parse --short "$head")
-title="update from binnacle-template $short_base..$short_head"
+if [ "${#summary[@]}" -gt 0 ]; then
+  title="update from binnacle-template $short_base..$short_head"
+else
+  title="stop tracking .binnacle/ (local-only forms settings)"
+fi
+backup=""
+if [ "${#local_files[@]}" -gt 0 ]; then
+  bn_warn "git tracks ${#local_files[@]} file(s) under .binnacle/, which is local only; this update untracks them and keeps them on disk:"
+  printf '    %s\n' "${local_files[@]}" >&2
+  backup=$gitdir/binnacle-local-backup/$run_id
+  (umask 077 && mkdir -p "$backup")
+  for p in "${local_files[@]}"; do
+    mkdir -p "$backup/$(dirname "$p")"
+    cp -p "$vault/$p" "$backup/$p" || bn_die "could not back up $p to $backup; nothing was changed"
+  done
+  bn_ok "backed up to $backup (outside the working tree, never committed)"
+fi
 wt=$work/vault
 git -C "$vault" worktree add --quiet -b "binnacle-update/$run_id" "$wt" "$BASE"
 branch=binnacle-update/$run_id
@@ -249,6 +276,10 @@ done
 for p in ${copy[@]+"${copy[@]}"}; do
   git -C "$wt" --literal-pathspecs checkout "$new_tree" -- "$p"
 done
+for p in ${local_files[@]+"${local_files[@]}"}; do
+  summary+=("untracked $p (kept on disk)")
+done
+[ "${#local_files[@]}" -eq 0 ] || git -C "$wt" rm -r -q --cached -- .binnacle
 # Every template-owned file on the branch is now the new template's.
 [ -z "$(git -C "$wt" diff --cached --no-renames --name-only --diff-filter=MDT "$new_tree" -- "${zones[@]}")" ] \
   || bn_die "the branch does not match the new template; nothing was changed"
@@ -265,6 +296,16 @@ if [ "$local_only" -eq 1 ]; then
   git -C "$vault" config binnacle.templateBase "$head"
   finished=1
   bn_ok "$BASE fast-forwarded (local only, no remote); binnacle.templateBase = $head"
+  if [ "${#local_files[@]}" -gt 0 ]; then
+    # The fast-forward deleted the untracked files from disk: put them back.
+    for p in "${local_files[@]}"; do
+      [ ! -e "$vault/$p" ] || continue
+      mkdir -p "$vault/$(dirname "$p")"
+      cp -p "$backup/$p" "$vault/$p" \
+        || bn_die "could not put $p back; copy it by hand: cp -Rp '$backup/.binnacle' '$vault/'"
+    done
+    bn_ok ".binnacle/ is no longer tracked and its files are back on disk (backup kept in $backup)"
+  fi
   exit 0
 fi
 
@@ -275,7 +316,13 @@ body=$work/pr-body.md
   printf 'Template update for this work brain, created by `setup/work-brain/update.sh`.\n\n'
   printf -- '- template: `%s` to `%s`\n' "$base" "$head"
   printf -- '- company scope rules re-applied to `CLAUDE.md` and the run prompt\n'
-  printf -- '- `wiki/`, `raw/`, `soundings/` and `audit/` not touched\n\n'
+  printf -- '- `wiki/`, `raw/`, `soundings/` and `audit/` not touched\n'
+  if [ "${#local_files[@]}" -gt 0 ]; then
+    printf -- '- `.binnacle/` (local-only forms settings) untracked; pulling this change\n'
+    printf '  deletes those files from disk on every clone that tracks them, so copy\n'
+    printf '  `.binnacle/` aside on a clone before it pulls, and back after\n'
+  fi
+  printf '\n'
   printf 'Files:\n\n'
   printf -- '- `%s`\n' "${summary[@]}"
   if [ "${#skipped[@]}" -gt 0 ]; then
@@ -295,3 +342,6 @@ git -C "$vault" branch -q -D "$branch"
 finished=1
 bn_ok "PR: $pr (not auto-merged; merge it yourself)"
 bn_log "after merging, pull $BASE; the next update.sh run records $short_head as the base"
+if [ "${#local_files[@]}" -gt 0 ]; then
+  bn_warn "pulling the merged PR deletes the .binnacle/ files from disk. Put them back right after the pull: cp -Rp '$backup/.binnacle' '$vault/' (on any other clone, copy .binnacle/ aside before it pulls)"
+fi
