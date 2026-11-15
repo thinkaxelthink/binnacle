@@ -21,7 +21,7 @@ contract material, or credentials, and no company system connects to it.
 | `raw/inbox/` | New sources waiting for ingest. The capture point. | Any device, by hand; `raw/inbox/forms/` also by `bin/binnacle-forms-to-inbox` (scrubbed survey responses) | read only |
 | `raw/` (everything else, e.g. `raw/sources/<run-id>/`) | Ingested sources, immutable. | `bin/binnacle-run` moves files here from the inbox, byte for byte | read only |
 | `soundings/` | Hand-written notes. `soundings/notion/` holds the Notion slip box, imported once (`setup/notion/`); same rules. | Any device, by hand; `soundings/notion/` by the owner's import PR | read only, and link to them |
-| `wiki/` | The wiki: pages, `index.md`, `log.md`. | Claude Code on shoyu only | read and write |
+| `wiki/` | The wiki: pages, `index.md`, `log.md`. | Claude Code on shoyu only (and the owner at a person page's yearly review, see "People zone") | read and write |
 | `audit/` | One note per AI run, plus the `runs.base` table. | `bin/binnacle-run` and Claude Code on shoyu | write only the lint section of the current run's note |
 | everything else (`CLAUDE.md`, `bin/`, `setup/`, `.github/`, `.obsidian/`, ...) | Template machinery. | The human | read only |
 
@@ -127,7 +127,9 @@ frontmatter, one year after its `created` date: the ingest sets it when it
 creates the page and never moves it. Once that date has passed, lint flags
 the page (`review`); lint never deletes. The owner then reviews the whole
 page and records the decision: keep by moving `retention_review` one year
-on, or delete the page and its `index.md` line. While it is off: never
+on, or delete the page and its `index.md` line. That keep-or-delete edit
+is the only owner write in `wiki/`; nothing else changes about who
+writes it. While it is off: never
 create or change anything in `wiki/people/`; a subject's themes stay on
 the survey's source page.
 
