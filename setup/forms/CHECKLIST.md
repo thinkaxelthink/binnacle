@@ -224,6 +224,11 @@ off.
 
       Turn it off again with `git config --unset binnacle.peopleZone`.
 
+- [ ] **[work machine, human]** Once a year per person page, when a run's
+      audit note flags it `review`: read the whole page, then keep it by
+      moving its `retention_review` date one year on, or delete the page
+      and its `wiki/index.md` line.
+
 ## Personal vault (Google Forms)
 
 The personal vault takes no company system. To pull your own Google

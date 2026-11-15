@@ -41,7 +41,9 @@ These files were just moved, unchanged, from `raw/inbox/`:
      topic syntheses, themes with counts and never verbatim quotes about
      the survey's `subject`, never a guess at who wrote an answer, and R
      labels never carried into the wiki. Pages in `wiki/people/` only
-     while the people zone is on.
+     while the people zone is on; a new person page gets
+     `retention_review` one year after {{DATE}}, and an existing page
+     keeps the date it has.
    - Update `wiki/index.md` for every page you create or whose one-line
      summary changes.
 
@@ -49,7 +51,9 @@ These files were just moved, unchanged, from `raw/inbox/`:
    you created or changed, and their neighbours, for:
    - **contradiction**: two pages or sources disagree;
    - **orphan**: a wiki page with no inbound link from another wiki page;
-   - **stale**: a claim a newer source supersedes.
+   - **stale**: a claim a newer source supersedes;
+   - **review**: any page in `wiki/people/` (check them all, every run)
+     whose `retention_review` date is before {{DATE}}.
    Do not fix what you flag (no rewrites, merges or deletions to resolve a
    flag). Record each flag as one bullet in the "## Lint flags" section of
    `{{AUDIT_NOTE}}`, between the `binnacle:llm-begin` and
@@ -57,7 +61,7 @@ These files were just moved, unchanged, from `raw/inbox/`:
 
    `- **contradiction** [[wiki/concepts/a]] vs [[wiki/concepts/b]]: what disagrees`
 
-   using `contradiction`, `orphan` or `stale` as the label. Write nothing
+   using `contradiction`, `orphan`, `stale` or `review` as the label. Write nothing
    there when nothing is flagged. Use "## Ingest notes" for anything else
    worth knowing about this run (skipped sources, judgement calls). Leave
    the markers and everything outside them as they are; the script rewrites

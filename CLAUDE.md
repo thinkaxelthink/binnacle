@@ -122,8 +122,14 @@ LLM which in the run prompt. While it is on: one page per survey subject,
 `wiki/people/<name>.md` with `type: person`, holding that person's themes
 over time from the form-response sources whose `subject` names them, each
 cited, under the theme rule above, and listed in `index.md` under People.
-While it is off: never create or change anything in `wiki/people/`; a
-subject's themes stay on the survey's source page.
+Each person page also carries `retention_review: YYYY-MM-DD` in its
+frontmatter, one year after its `created` date: the ingest sets it when it
+creates the page and never moves it. Once that date has passed, lint flags
+the page (`review`); lint never deletes. The owner then reviews the whole
+page and records the decision: keep by moving `retention_review` one year
+on, or delete the page and its `index.md` line. While it is off: never
+create or change anything in `wiki/people/`; a subject's themes stay on
+the survey's source page.
 
 ## index.md
 
@@ -188,7 +194,9 @@ Flag only, never fix. A lint pass looks for:
 
 - **contradiction**: two pages, or a page and a source, disagree;
 - **orphan**: a wiki page that no other wiki page links to;
-- **stale**: a claim that a newer source supersedes.
+- **stale**: a claim that a newer source supersedes;
+- **review**: a page in `wiki/people/` whose `retention_review` date has
+  passed (see "People zone").
 
 Each flag is one bullet in the run's audit note:
 `- **orphan** [[wiki/entities/foo]]: nothing links here`.
