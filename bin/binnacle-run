@@ -314,7 +314,7 @@ changed=()
 deleted=()
 write_note() {
   local status=$1 reason=$2 pr=$3 merged=$4 region=$5 flags
-  flags=$(grep -cE '^- \*\*(contradiction|orphan|stale)\*\*' "$region" || true)
+  flags=$(grep -cE '^- \*\*(contradiction|orphan|stale|review)\*\*' "$region" || true)
   {
     printf -- '---\ntype: binnacle-run\nrun_id: %s\ndate: %s\nstatus: %s\n' "$run_id" "$day" "$status"
     yaml_links sources "${moved[@]}"

@@ -61,8 +61,9 @@ a pull request that merges itself once the secret scan passes. Every run leaves 
 Empty inbox: no run, no branch, no PR. Otherwise, in a temporary worktree:
 branch, move `raw/inbox/` into `raw/sources/<run-id>/`, ingest with Claude
 Code (prompt: `bin/binnacle-run.prompt.md`), flag-only lint
-(contradictions, orphans, stale claims), append `wiki/log.md`, write
-`audit/runs/<run-id>.md`, push, open a PR, enable auto-merge. A failure
+(contradictions, orphans, stale claims, person pages due for review), append
+`wiki/log.md`, write `audit/runs/<run-id>.md`, push, open a PR, enable
+auto-merge. A failure
 leaves the PR open without auto-merge and the audit note says why. Nothing
 retries, and a new run refuses while a run PR is open. A run also skips
 (exit 0, no branch, no PR) while a Notion import is in progress or another

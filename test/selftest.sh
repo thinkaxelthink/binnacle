@@ -147,7 +147,9 @@ if [ "$STUB_CLAUDE_MODE" = zone ]; then
 fi
 if [ "$STUB_CLAUDE_MODE" = people ]; then
   mkdir -p wiki/people
-  printf -- '---\ntype: person\n---\n# Sample subject\n' >wiki/people/sample-subject.md
+  printf -- '---\ntype: person\nretention_review: 2026-01-01\n---\n# Sample subject\n' >wiki/people/sample-subject.md
+  awk '{ print } /^## Lint flags$/ { print ""; print "- **review** [[wiki/people/sample-subject]]: retention_review 2026-01-01 has passed" }' \
+    "$note" >"$note.tmp" && mv "$note.tmp" "$note"
 fi
 exit 0
 EOF
@@ -1401,6 +1403,8 @@ if [ "$template_rules" = yes ]; then
   check "work-brain setup: CLAUDE.md drops the personal scope" bash -c '! grep -q "Scope is personal" "$1"' _ "$B/CLAUDE.md"
   check "work-brain setup: run prompt skips the limited material" grep -q 'health or waiver records' "$B/bin/binnacle-run.prompt.md"
   check "work-brain setup: CLAUDE.md allows only the owner's Forms flow" grep -q "own Microsoft Forms flow may" "$B/CLAUDE.md"
+  check "work-brain setup: CLAUDE.md keeps the yearly person-page review" grep -q 'Each person page also carries `retention_review: YYYY-MM-DD`' "$B/CLAUDE.md"
+  check "work-brain setup: CLAUDE.md lint flags a passed review date" grep -q '^- \*\*review\*\*: a page in `wiki/people/`' "$B/CLAUDE.md"
   check "work-brain setup: template CLAUDE.md unchanged" bash -c 'grep -q "Scope is personal" "$1"' _ "$repo/CLAUDE.md"
   check "work-brain hook: rejects a file over the cap" expect_fail env BINNACLE_MAX_FILE_BYTES=4 \
     bash -c 'printf 12345 >"$1/raw/inbox/big.md" && git -C "$1" add -A && git -C "$1" commit -qm big' _ "$B"
@@ -1486,6 +1490,10 @@ if [ "$template_rules" = yes ]; then
   check "people zone on: the run exits 0" env STUB_CLAUDE_MODE=people STUB_PROMPT="$T/prompt.txt" "$B/bin/binnacle-run"
   check "people zone on: the prompt says on" grep -q 'is \*\*on\*\* in this vault' "$T/prompt.txt"
   check "people zone on: the page reaches main" test -f "$B/wiki/people/sample-subject.md"
+  check "people zone on: the prompt asks lint to flag a passed review date" \
+    grep -q 'whose `retention_review` date is before' "$T/prompt.txt"
+  check "people zone on: the audit note counts the review flag" bash -c \
+    'grep -q "^lint_flags: 2$" "$1/audit/runs/$(ls "$1/audit/runs" | grep -E "^[0-9TZ]+\.md$" | sort | tail -n 1)"' _ "$B"
   git -C "$B" config --unset binnacle.peopleZone
 fi
 
