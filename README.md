@@ -110,27 +110,34 @@ Every step is either an idempotent script, safe to re-run, or a checklist
 item that names the device it happens on. The checklists are the source of
 truth; this section gives the order.
 
-The scripts default to the template author's GitHub account. Set
-`BINNACLE_OWNER` to your own GitHub login when you run them, and use your
-login in the clone URLs the checklists show.
-[TK: keep this instruction, or change the default in `setup/common/lib.sh`
-before publishing?]
+The scripts have no built-in GitHub account. They take yours from
+`BINNACLE_OWNER` when you set it, and otherwise from the `origin` of the
+clone they run from: your fork of the template, or your vault. When
+neither gives one, they stop and ask you to set
+`BINNACLE_OWNER=<your-github-user>`. In the checklists' clone URLs,
+`<your-github-user>` stands for your GitHub login.
 
 ### Personal vault
 
-1. **Your copy of the template.** Put this repository in your GitHub
-   account as `binnacle-template`. The GitHub script marks
-   `<owner>/binnacle-template` as a template and creates the vault from it
-   (`BINNACLE_TEMPLATE_REPO` names a different repository).
-   [TK: recommend fork, "Use this template", or clone and push?]
-2. **GitHub.** Follow `setup/github/CHECKLIST.md`, then:
+1. **Your copy of the template.** Fork this repository into your GitHub
+   account, keeping the name `binnacle-template`, and clone your fork:
 
    ```sh
-   BINNACLE_OWNER=<you> setup/github/setup.sh --dry-run   # shows every call, changes nothing
-   BINNACLE_OWNER=<you> setup/github/setup.sh
+   git clone https://github.com/<your-github-user>/binnacle-template.git ~/src/binnacle-template
    ```
 
-   This creates the private repository `<you>/binnacle`, turns on squash
+   The GitHub script marks `<your-github-user>/binnacle-template` as a
+   template and creates the vault from it (`BINNACLE_TEMPLATE_REPO` names
+   a different repository).
+2. **GitHub.** Follow `setup/github/CHECKLIST.md`, then, from your fork's
+   clone:
+
+   ```sh
+   setup/github/setup.sh --dry-run   # shows every call, changes nothing
+   setup/github/setup.sh
+   ```
+
+   This creates the private repository `<your-github-user>/binnacle`, turns on squash
    auto-merge and delete-branch-on-merge, and protects `main`: the
    `gitleaks` check must pass before a pull request merges, and force
    pushes and branch deletion are blocked. Admins are not enforced, so your
@@ -176,8 +183,8 @@ Once a first run works, three optional additions:
 
 ### Work brain
 
-Follow `setup/work-brain/CHECKLIST.md`. Clone this template somewhere
-outside any vault, then:
+Follow `setup/work-brain/CHECKLIST.md`. Clone your fork of the template
+somewhere outside any vault, then:
 
 ```sh
 ~/src/binnacle-template/setup/work-brain/setup.sh \
@@ -204,9 +211,9 @@ as in the personal vault. Microsoft Forms intake for a work brain is in
 The template carries no content, so a second vault is the same steps with
 different names, for example `garden` at `~/garden`:
 
-1. GitHub: `BINNACLE_OWNER=<you> BINNACLE_REPO=garden setup/github/setup.sh`.
+1. GitHub, from your fork's clone: `BINNACLE_REPO=garden setup/github/setup.sh`.
 2. On each Mac, clone the new repository to its folder, then
-   `BINNACLE_OWNER=<you> BINNACLE_REPO=garden BINNACLE_DIR=~/garden setup/<machine>/setup.sh`.
+   `BINNACLE_REPO=garden BINNACLE_DIR=~/garden ~/garden/setup/<machine>/setup.sh`.
 3. On the iPhone, add the repository in GitSync (check that your GitSync
    tier allows another one).
 4. Make new tokens scoped to the new repository. Never reuse a token across
@@ -299,8 +306,10 @@ Every vault setup script (`setup/shoyu/setup.sh`,
 `setup/workmac/setup.sh`, `setup/work-brain/setup.sh`) calls
 `setup/common/register-vault.sh`, which:
 
-1. registers the marketplace `<BINNACLE_OWNER>/binnacle-template`
-   (`BINNACLE_MARKETPLACE` names another) and installs or updates the
+1. registers the marketplace in your fork,
+   `<your-github-user>/binnacle-template` (the account as above; a work
+   brain records it in `git config binnacle.marketplace` when it is
+   created; `BINNACLE_MARKETPLACE` names another) and installs or updates the
    `binnacle` plugin at user scope with the `claude` CLI. Without `claude`
    it skips this step with a message;
 2. adds or refreshes the vault's row in a marked block of
@@ -421,4 +430,8 @@ not this repository. Changes here are ordinary reviewed code changes.
   `main`. Renaming it means updating `BINNACLE_SCAN_CHECK` in
   `setup/github/setup.sh` and the branch protection rule.
 
-[TK: license, and whether outside pull requests are welcome]
+Outside pull requests are welcome: fork the repository, make the change on
+a branch with `test/selftest.sh` passing, and open a pull request against
+`main`.
+
+[TK: license]

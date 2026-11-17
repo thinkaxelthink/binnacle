@@ -4,7 +4,8 @@
 # session (not a device token). See setup/github/CHECKLIST.md first.
 #
 # Usage: setup/github/setup.sh [--dry-run]
-# Env:   BINNACLE_OWNER (thinkaxelthink), BINNACLE_REPO (binnacle),
+# Env:   BINNACLE_OWNER (your GitHub user; default: the owner of this
+#        checkout's github.com origin, i.e. your fork), BINNACLE_REPO (binnacle),
 #        BINNACLE_TEMPLATE_REPO (binnacle-template),
 #        BINNACLE_SCAN_CHECK (gitleaks) - the required status check, i.e. the
 #        job name in .github/workflows/secret-scan.yml.
@@ -25,6 +26,7 @@ here=$(cd "$(dirname "$0")" && pwd -P)
 TEMPLATE=${BINNACLE_TEMPLATE_REPO:-binnacle-template}
 CHECK=${BINNACLE_SCAN_CHECK:-gitleaks}
 GH=${BINNACLE_GH:-gh}
+bn_require_owner
 repo="$BINNACLE_OWNER/$BINNACLE_REPO"
 template="$BINNACLE_OWNER/$TEMPLATE"
 

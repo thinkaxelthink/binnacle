@@ -23,7 +23,7 @@ or token into a note, and keep attachments under 10 MB.
 - [ ] **[iPhone, human]** In Obsidian, create an empty vault named
       `binnacle` stored on the iPhone (not iCloud), then close Obsidian.
 - [ ] **[iPhone, human]** In GitSync, add the repository
-      `https://github.com/thinkaxelthink/binnacle.git` with HTTPS and the
+      `https://github.com/<your-github-user>/binnacle.git` with HTTPS and the
       token, and point it at Obsidian's `binnacle` vault folder. Let it
       clone.
 - [ ] **[iPhone, human]** Open Obsidian; the vault shows `raw/`,

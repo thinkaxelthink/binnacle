@@ -1,10 +1,15 @@
 # shellcheck shell=bash
 # Shared helpers for the Binnacle setup scripts. Source it; do not run it.
 
-BINNACLE_OWNER=${BINNACLE_OWNER:-thinkaxelthink}
+# BINNACLE_OWNER has no default: bn_require_owner works it out.
+BINNACLE_OWNER=${BINNACLE_OWNER:-}
 BINNACLE_REPO=${BINNACLE_REPO:-binnacle}
 BINNACLE_DIR=${BINNACLE_DIR:-$HOME/binnacle}
 BINNACLE_MIN_OBSIDIAN=${BINNACLE_MIN_OBSIDIAN:-1.13}
+
+# The checkout this file belongs to: your fork of the template, or a vault
+# made from it.
+BN_CHECKOUT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 
 bn_log() { printf '==> %s\n' "$*"; }
 bn_ok() { printf '  ok   %s\n' "$*"; }
@@ -95,6 +100,53 @@ bn_path_is_under() {
   return 1
 }
 
+# bn_github_owner URL: print the account part of a github.com remote URL
+# (https://github.com/OWNER/..., git@github.com:OWNER/...,
+# ssh://git@github.com/OWNER/...), or nothing for any other URL.
+bn_github_owner() {
+  local rest
+  case $1 in
+    https://github.com/*) rest=${1#https://github.com/} ;;
+    git@github.com:*) rest=${1#git@github.com:} ;;
+    ssh://git@github.com/*) rest=${1#ssh://git@github.com/} ;;
+    *) return 0 ;;
+  esac
+  case $rest in ?*/*) printf '%s\n' "${rest%%/*}" ;; esac
+  return 0
+}
+
+# bn_origin_owner DIR: print the GitHub account of the origin remote of the
+# repository holding DIR, or nothing.
+bn_origin_owner() {
+  local top
+  top=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null) || return 0
+  bn_github_owner "$(git -C "$top" remote get-url origin 2>/dev/null || true)"
+}
+
+# bn_require_owner: set BINNACLE_OWNER, your GitHub user, when the
+# environment did not: from the github.com origin of this checkout (your
+# fork of the template, or your vault clone). Dies when neither gives one.
+bn_require_owner() {
+  [ -z "$BINNACLE_OWNER" ] || return 0
+  BINNACLE_OWNER=$(bn_origin_owner "$BN_CHECKOUT")
+  [ -n "$BINNACLE_OWNER" ] || bn_die "cannot tell your GitHub user: $BN_CHECKOUT has no github.com origin. Run this from a clone of your own fork or vault, or set BINNACLE_OWNER=<your-github-user>"
+  bn_ok "BINNACLE_OWNER = $BINNACLE_OWNER (from the origin of $BN_CHECKOUT)"
+}
+
+# bn_marketplace: print where the binnacle Claude Code plugin comes from:
+# BINNACLE_MARKETPLACE, else <owner>/binnacle-template (your fork), the
+# owner being BINNACLE_OWNER or this checkout's github.com origin; nothing
+# when none of them gives one.
+bn_marketplace() {
+  local owner
+  if [ -n "${BINNACLE_MARKETPLACE:-}" ]; then
+    printf '%s\n' "$BINNACLE_MARKETPLACE"
+    return 0
+  fi
+  owner=${BINNACLE_OWNER:-$(bn_origin_owner "$BN_CHECKOUT")}
+  [ -z "$owner" ] || printf '%s/binnacle-template\n' "$owner"
+}
+
 # Clone the vault to BINNACLE_DIR, or verify an existing clone.
 bn_clone_vault() {
   local url="https://github.com/$BINNACLE_OWNER/$BINNACLE_REPO.git" origin
@@ -132,8 +184,8 @@ bn_set_git_identity() {
 
 # --- Claude Code: the binnacle plugin and the per-machine vault list ---------
 # The marketplace this template publishes (.claude-plugin/marketplace.json)
-# and the plugin in it. setup/common/register-vault.sh uses them.
-BINNACLE_MARKETPLACE=${BINNACLE_MARKETPLACE:-$BINNACLE_OWNER/binnacle-template}
+# and the plugin in it. setup/common/register-vault.sh uses them; the
+# setup scripts tell it where the marketplace is (bn_marketplace).
 BN_MARKETPLACE_NAME=binnacle-template
 BN_PLUGIN=binnacle@$BN_MARKETPLACE_NAME
 # The scope line of a personal vault in the vault list.
@@ -239,17 +291,23 @@ bn_vault_list_edit() {
   rm -f "$tmp"
 }
 
-# bn_claude_plugin: register this template's marketplace and install or
+# bn_claude_plugin: register this template's marketplace, from the GitHub
+# repository BINNACLE_MARKETPLACE names (<owner>/<repo>), and install or
 # update the binnacle plugin at user scope with the claude CLI
 # (BINNACLE_CLAUDE, default claude). Each step is idempotent: re-adding a
 # marketplace or reinstalling a plugin that is already there changes
 # nothing. Skips, successfully and with a message, when claude is not
-# installed; fails when a claude step fails.
+# installed; fails when BINNACLE_MARKETPLACE is unset or a claude step
+# fails.
 bn_claude_plugin() {
   local claude=${BINNACLE_CLAUDE:-claude}
   if ! command -v "$claude" >/dev/null 2>&1; then
     bn_warn "claude not found: skipped the binnacle Claude Code plugin. Install Claude Code, then re-run this setup"
     return 0
+  fi
+  if [ -z "${BINNACLE_MARKETPLACE:-}" ]; then
+    bn_warn "skipped the binnacle Claude Code plugin: cannot tell which fork of binnacle-template it comes from. Set BINNACLE_MARKETPLACE=<your-github-user>/binnacle-template (or BINNACLE_OWNER) and re-run this setup"
+    return 1
   fi
   if ! { "$claude" plugin marketplace add "$BINNACLE_MARKETPLACE" --scope user >/dev/null \
     && "$claude" plugin marketplace update "$BN_MARKETPLACE_NAME" >/dev/null \

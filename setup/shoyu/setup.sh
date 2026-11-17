@@ -2,7 +2,8 @@
 # Set up shoyu, the only machine where Claude Code writes the wiki. Idempotent.
 #
 # Usage: setup/shoyu/setup.sh
-# Env:   BINNACLE_OWNER (thinkaxelthink), BINNACLE_REPO (binnacle),
+# Env:   BINNACLE_OWNER (your GitHub user; default: the owner of this
+#        checkout's github.com origin, i.e. your vault clone), BINNACLE_REPO (binnacle),
 #        BINNACLE_DIR (~/binnacle), BINNACLE_MIN_OBSIDIAN (1.13),
 #        BINNACLE_GH_TOKEN_FILE (unset; a mode-600 token file for when the
 #        keychain is unreachable, recorded as binnacle.ghTokenFile),
@@ -23,6 +24,9 @@ problem() {
   bn_warn "$*"
   problems=$((problems + 1))
 }
+
+bn_log "GitHub user"
+bn_require_owner
 
 bn_log "vault clone"
 bn_clone_vault
@@ -58,7 +62,8 @@ for tool in git gh claude; do
 done
 
 bn_log "Claude Code: binnacle plugin and vault list"
-"$here/../common/register-vault.sh" "$BINNACLE_REPO" "$BINNACLE_DIR" "$BN_PERSONAL_SCOPE" \
+BINNACLE_MARKETPLACE=$(bn_marketplace) \
+  "$here/../common/register-vault.sh" "$BINNACLE_REPO" "$BINNACLE_DIR" "$BN_PERSONAL_SCOPE" \
   || problem "the binnacle Claude Code plugin step failed (see above)"
 
 bn_log "Obsidian >= $BINNACLE_MIN_OBSIDIAN"

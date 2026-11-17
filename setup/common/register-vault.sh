@@ -15,10 +15,12 @@
 # are keyed by DIR; nothing outside the block changes. The setup scripts
 # run it.
 #
-# Env: BINNACLE_CLAUDE (claude), BINNACLE_MARKETPLACE
-#      (<BINNACLE_OWNER>/binnacle-template, the repository that publishes
-#      the marketplace).
-# Exits 1 when the plugin step fails; the row is written first either way.
+# Env: BINNACLE_CLAUDE (claude), BINNACLE_MARKETPLACE (required for the
+#      plugin step: the GitHub repository that publishes the marketplace,
+#      your fork, e.g. <your-github-user>/binnacle-template; the setup
+#      scripts set it).
+# Exits 1 when the plugin step fails or BINNACLE_MARKETPLACE is unset; the
+# row is written first either way.
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd -P)

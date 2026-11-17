@@ -95,12 +95,12 @@ What those sources establish:
 
 ## C. Import on shoyu
 
-- [ ] **[shoyu, owner]** Have a checkout of `binnacle-template` (public)
-      for the script; it works on `~/binnacle` without changing the
-      vault's own copy of the template:
+- [ ] **[shoyu, owner]** Have a checkout of your fork of
+      `binnacle-template` for the script; it works on `~/binnacle` without
+      changing the vault's own copy of the template:
 
       ```sh
-      git clone https://github.com/thinkaxelthink/binnacle-template.git ~/binnacle-template
+      git clone https://github.com/<your-github-user>/binnacle-template.git ~/binnacle-template
       # or, if it is already there:
       git -C ~/binnacle-template pull --ff-only
       ```

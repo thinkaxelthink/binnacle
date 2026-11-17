@@ -13,8 +13,16 @@ Do this first, once. Device checklists come after.
       log in as the repo owner: `gh auth login`. This interactive login is
       used only for this one-time admin script; devices use their own
       fine-grained tokens (below).
-- [ ] **[any Mac, human]** `binnacle-template` is pushed to GitHub with
-      `.github/workflows/secret-scan.yml` on its default branch.
+- [ ] **[browser, human]** Fork this template repository into your GitHub
+      account, keeping the name `binnacle-template`, so
+      `.github/workflows/secret-scan.yml` is on its default branch.
+- [ ] **[any Mac, human]** Clone your fork; the script runs from it and
+      takes your GitHub user from its `origin` (`BINNACLE_OWNER` overrides):
+
+      ```sh
+      git clone https://github.com/<your-github-user>/binnacle-template.git ~/src/binnacle-template
+      cd ~/src/binnacle-template
+      ```
 
 ## The script
 

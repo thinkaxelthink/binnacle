@@ -77,11 +77,12 @@ installed on all repositories.
       account your employer approves for this work (`claude`, then follow
       the login prompt).
 - [ ] **[work machine, human]** Install Obsidian.
-- [ ] **[work machine, human]** Clone this template somewhere outside
-      `~/binnacle` (it is public and holds no content):
+- [ ] **[work machine, human]** Clone your fork of this template (see the
+      README, "Your copy of the template") somewhere outside `~/binnacle`;
+      it holds no content:
 
       ```sh
-      git clone https://github.com/thinkaxelthink/binnacle-template.git ~/src/binnacle-template
+      git clone https://github.com/<your-github-user>/binnacle-template.git ~/src/binnacle-template
       ```
 
 ## The script
@@ -114,9 +115,11 @@ It:
   (`binnacle.templateBase`), where `update.sh` starts;
 - tells Claude Code on this machine about the brain
   (`setup/common/register-vault.sh`): registers this template's plugin
-  marketplace (`<BINNACLE_OWNER>/binnacle-template`, by default
-  `thinkaxelthink/binnacle-template`; `BINNACLE_MARKETPLACE` names another)
-  and installs or updates
+  marketplace from your fork, `<your-github-user>/binnacle-template` (from
+  `BINNACLE_MARKETPLACE`, else `BINNACLE_OWNER`, else the `origin` of the
+  template clone you ran it from), recorded in
+  `git config binnacle.marketplace` so later runs from the brain's own copy
+  reuse it, and installs or updates
   the `binnacle` plugin at user scope with the `claude` CLI (skipped, with
   a message, when `claude` is not installed), then adds or refreshes the
   brain's row (name, path, the company scope above) in the marked block of

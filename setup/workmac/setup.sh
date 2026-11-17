@@ -2,7 +2,8 @@
 # Set up the work Mac: a read-and-capture-only clone of the vault. Idempotent.
 #
 # Usage: setup/workmac/setup.sh
-# Env:   BINNACLE_OWNER (thinkaxelthink), BINNACLE_REPO (binnacle),
+# Env:   BINNACLE_OWNER (your GitHub user; default: the owner of this
+#        checkout's github.com origin, i.e. your vault clone), BINNACLE_REPO (binnacle),
 #        BINNACLE_DIR (~/binnacle),
 #        BINNACLE_WORK_DOCS - your employer's documents folder; the clone may
 #        never live inside it. Required: taken from this variable, else from
@@ -41,6 +42,9 @@ if bn_path_is_under "$BINNACLE_DIR" "$BINNACLE_WORK_DOCS"; then
 fi
 bn_ok "$BINNACLE_DIR is outside $BINNACLE_WORK_DOCS"
 
+bn_log "GitHub user"
+bn_require_owner
+
 bn_log "vault clone"
 bn_clone_vault
 
@@ -55,7 +59,8 @@ bn_log "hooks"
 "$BINNACLE_DIR/setup/common/install-hooks.sh" "$BINNACLE_DIR"
 
 bn_log "Claude Code: binnacle plugin and vault list"
-"$here/../common/register-vault.sh" "$BINNACLE_REPO" "$BINNACLE_DIR" "$BN_PERSONAL_SCOPE" \
+BINNACLE_MARKETPLACE=$(bn_marketplace) \
+  "$here/../common/register-vault.sh" "$BINNACLE_REPO" "$BINNACLE_DIR" "$BN_PERSONAL_SCOPE" \
   || bn_warn "the binnacle Claude Code plugin step failed (see above); re-run this script to retry"
 
 bn_log "Obsidian"

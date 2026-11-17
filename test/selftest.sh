@@ -550,7 +550,27 @@ check "install-hooks: updates the recorded path when gitleaks moves" bash -c \
   'BINNACLE_GITLEAKS="$3/gitleaks-mark" "$1" "$2" && test "$(git -C "$2" config binnacle.gitleaks)" = "$3/gitleaks-mark"' \
   _ "$repo/setup/common/install-hooks.sh" "$V" "$stubs_phys"
 check "github --dry-run: changes nothing, names the check" bash -c \
-  '"$1" --dry-run | grep -q "\"context\": \"gitleaks\""' _ "$repo/setup/github/setup.sh"
+  'BINNACLE_OWNER=example-user "$1" --dry-run | grep -q "\"context\": \"gitleaks\""' _ "$repo/setup/github/setup.sh"
+
+# No built-in GitHub user: BINNACLE_OWNER, else the owner of the checkout's
+# github.com origin (your fork or vault clone), else a clear refusal.
+check "owner: https origin" test "$(bash -c '. "$1"; bn_github_owner https://github.com/Some-User/binnacle-template.git' _ "$lib")" = Some-User
+check "owner: scp-style ssh origin" test "$(bash -c '. "$1"; bn_github_owner git@github.com:some-user/binnacle' _ "$lib")" = some-user
+check "owner: ssh:// origin" test "$(bash -c '. "$1"; bn_github_owner ssh://git@github.com/some-user/binnacle.git' _ "$lib")" = some-user
+check "owner: none from a non-GitHub origin" test -z "$(bash -c '. "$1"; bn_github_owner "$2"' _ "$lib" "$T/remote.git")"
+git clone -q "$T/seed" "$T/fork"
+git -C "$T/fork" remote set-url origin https://github.com/example-user/binnacle-template.git
+check "owner: github --dry-run takes the owner from the fork's origin" bash -c \
+  'env -u BINNACLE_OWNER "$1/setup/github/setup.sh" --dry-run | grep -q "example-user/binnacle"' _ "$T/fork"
+check "owner: github setup refuses a checkout with no github.com origin" bash -c \
+  '! env -u BINNACLE_OWNER "$1/setup/github/setup.sh" --dry-run >"$2" 2>&1 && grep -q "BINNACLE_OWNER=<your-github-user>" "$2"' \
+  _ "$T/seed" "$T/owner.out"
+check "owner: shoyu setup refuses with no owner, before cloning" bash -c \
+  '! env -u BINNACLE_OWNER HOME="$2" BINNACLE_DIR="$2/no-vault" "$1/setup/shoyu/setup.sh" >"$3" 2>&1 \
+    && grep -q "BINNACLE_OWNER=<your-github-user>" "$3" && test ! -e "$2/no-vault"' _ "$T/seed" "$T/home" "$T/owner.out"
+check "owner: workmac setup refuses with no owner, before cloning" bash -c \
+  '! env -u BINNACLE_OWNER HOME="$2" BINNACLE_DIR="$2/no-vault" "$1/setup/workmac/setup.sh" >"$3" 2>&1 \
+    && grep -q "BINNACLE_OWNER=<your-github-user>" "$3" && test ! -e "$2/no-vault"' _ "$T/seed" "$T/home" "$T/owner.out"
 
 # --- Claude Code: setup/common/register-vault.sh and the vault list -------------------
 # A throwaway HOME; the stub claude logs the plugin commands.
@@ -561,7 +581,8 @@ v1=$(bash -c '. "$1"; bn_physical_path "$2"' _ "$lib" "$CH/v1")
 v2=$(bash -c '. "$1"; bn_physical_path "$2"' _ "$lib" "$CH/v2")
 reg_sh=$repo/setup/common/register-vault.sh
 reg() { # args... -> register-vault.sh with HOME=$CH, output in $T/reg.out
-  env HOME="$CH" STUB_CLAUDE_PLUGIN_LOG="$T/plugin.log" "$reg_sh" "$@" >"$T/reg.out" 2>&1
+  env HOME="$CH" STUB_CLAUDE_PLUGIN_LOG="$T/plugin.log" BINNACLE_MARKETPLACE=example-user/binnacle-template \
+    "$reg_sh" "$@" >"$T/reg.out" 2>&1
 }
 rows() { grep -c '^- \*\*.*\*\* at `' "$CMD"; }
 row_for() { grep -c -F "at \`$1\`:" "$CMD"; }
@@ -572,7 +593,7 @@ check "vault list: block markers present once" bash -c \
   'test "$(grep -cx "<!-- binnacle:begin -->" "$1")" = 1 && test "$(grep -cx "<!-- binnacle:end -->" "$1")" = 1' _ "$CMD"
 check "vault list: block names the binnacle skill" grep -q 'Use the `binnacle` skill' "$CMD"
 check "plugin: marketplace added, refreshed, plugin installed and updated at user scope" diff -u - "$T/plugin.log" <<PLUG
-claude plugin marketplace add thinkaxelthink/binnacle-template --scope user
+claude plugin marketplace add example-user/binnacle-template --scope user
 claude plugin marketplace update binnacle-template
 claude plugin install binnacle@binnacle-template --scope user
 claude plugin update binnacle@binnacle-template --scope user
@@ -582,6 +603,10 @@ cp "$CMD" "$T/cmd.before"
 check "plugin: BINNACLE_MARKETPLACE names the source" env BINNACLE_MARKETPLACE=someone/fork HOME="$CH" \
   STUB_CLAUDE_PLUGIN_LOG="$T/plugin.log" "$reg_sh" one "$CH/v1" "personal: first"
 check "plugin: marketplace added from that source" grep -qx "claude plugin marketplace add someone/fork --scope user" "$T/plugin.log"
+check "plugin: without BINNACLE_MARKETPLACE, the plugin step fails with the fix" bash -c \
+  '! env -u BINNACLE_MARKETPLACE HOME="$1" "$2" one "$1/v1" "personal: first" >"$3" 2>&1 \
+    && grep -q "Set BINNACLE_MARKETPLACE=<your-github-user>/binnacle-template" "$3"' _ "$CH" "$reg_sh" "$T/reg.out"
+check "plugin: without BINNACLE_MARKETPLACE, the vault is still listed" grep -qF "**one** at \`$v1\`" "$CMD"
 check "vault list: re-run on a new file changes nothing" cmp -s "$T/cmd.before" "$CMD"
 # Surround the block with the owner's own content, which must never change.
 { printf '# My notes\n\nKeep this line.\n\n'; cat "$CMD"; printf '\n## Later\n\nAnd this one.\n'; } >"$T/cmd.tmp" && mv "$T/cmd.tmp" "$CMD"
@@ -630,7 +655,7 @@ vp=$(bash -c '. "$1"; bn_physical_path "$2"' _ "$lib" "$V")
 check "shoyu and workmac: vault listed once in ~/.claude/CLAUDE.md" test "$(grep -cF "at \`$vp\`:" "$T/home/.claude/CLAUDE.md")" = 1
 check "shoyu and workmac: personal scope, named after the repo" \
   grep -qxF -- "- **remote** at \`$vp\`: personal: the owner's own thinking and architectural learnings; never company material" "$T/home/.claude/CLAUDE.md"
-check "shoyu: installs the plugin" bash -c ': >"$1" && env STUB_CLAUDE_PLUGIN_LOG="$1" HOME="$2" BINNACLE_DIR="$3" BINNACLE_OWNER="$4" BINNACLE_REPO=remote "$5" >/dev/null 2>&1; grep -q "plugin install binnacle@binnacle-template --scope user" "$1"' \
+check "shoyu: installs the plugin from <BINNACLE_OWNER>/binnacle-template" bash -c ': >"$1" && env STUB_CLAUDE_PLUGIN_LOG="$1" HOME="$2" BINNACLE_DIR="$3" BINNACLE_OWNER="$4" BINNACLE_REPO=remote "$5" >/dev/null 2>&1; grep -qx "claude plugin marketplace add $4/binnacle-template --scope user" "$1" && grep -q "plugin install binnacle@binnacle-template --scope user" "$1"' \
   _ "$T/plugin.log" "$T/home" "$V" "${T##*/}" "$repo/setup/shoyu/setup.sh"
 if command -v claude >/dev/null 2>&1; then
   check "plugin manifests: marketplace validates (--strict)" env HOME="$T/vhome" claude plugin validate "$repo" --strict
@@ -1521,6 +1546,11 @@ if [ "$template_rules" = yes ]; then
     _ "$T/plugin.log" "$WH" "$B/setup/work-brain/setup.sh" "$T/wb.out"
   check "work-brain setup: plugin marketplace added from <BINNACLE_OWNER>/binnacle-template" \
     grep -qx "claude plugin marketplace add someowner/binnacle-template --scope user" "$T/plugin.log"
+  : >"$T/plugin.log"
+  check "work-brain setup: re-run from the brain's own copy reuses the recorded marketplace" bash -c \
+    'env -u BINNACLE_OWNER -u BINNACLE_MARKETPLACE STUB_CLAUDE_PLUGIN_LOG="$1" HOME="$2" "$3" --org acme-engineering --user jdoe >"$4" 2>&1 \
+      && grep -qx "claude plugin marketplace add someowner/binnacle-template --scope user" "$1"' \
+    _ "$T/plugin.log" "$WH" "$B/setup/work-brain/setup.sh" "$T/wb.out"
 
   # Collisions: nothing but a new folder or this brain's own vault.
   mkdir -p "$WH/foreign"

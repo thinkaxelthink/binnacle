@@ -36,7 +36,7 @@ contract material, no credentials.
       GitHub login and the password is the token (kept in the keychain):
 
       ```sh
-      git clone https://github.com/thinkaxelthink/binnacle.git ~/binnacle
+      git clone https://github.com/<your-github-user>/binnacle.git ~/binnacle
       ```
 
 ## The script
@@ -57,9 +57,9 @@ gitleaks + 10 MB pre-commit hook, recording the gitleaks path in
 
 It also tells Claude Code on this Mac about the vault
 (`setup/common/register-vault.sh`): it registers this template's plugin
-marketplace (`<BINNACLE_OWNER>/binnacle-template`, by default
-`thinkaxelthink/binnacle-template`; `BINNACLE_MARKETPLACE` names another)
-and installs or updates
+marketplace from your fork, `<your-github-user>/binnacle-template` (your
+GitHub user comes from `BINNACLE_OWNER`, else the vault clone's `origin`;
+`BINNACLE_MARKETPLACE` names another repository) and installs or updates
 the `binnacle` plugin at user scope with the `claude` CLI (skipped, with a
 message, when `claude` is not installed), then adds or refreshes the
 vault's row (name, path, scope) in the marked block of
