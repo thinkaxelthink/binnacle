@@ -147,7 +147,8 @@ setup script for that vault.
    BINNACLE_OWNER=<your-github-user> setup/github/setup.sh
    ```
 
-   This creates the private repository `<your-github-user>/binnacle`, turns on squash
+   This creates the private repository `<your-github-user>/binnacle-<user>`
+   (or whatever `BINNACLE_REPO` names), turns on squash
    auto-merge and delete-branch-on-merge, and protects `main`: the
    `gitleaks` check must pass before a pull request merges, and force
    pushes and branch deletion are blocked. Admins are not enforced, so your
@@ -330,7 +331,7 @@ Every vault setup script (`setup/shoyu/setup.sh`,
    ```
    <!-- binnacle:begin -->
    ...
-   - **binnacle** at `/Users/you/binnacle`: personal: the owner's own thinking and architectural learnings; never company material
+   - **binnacle-you** at `/Users/you/binnacle-you`: personal: the owner's own thinking and architectural learnings; never company material
    ...
    <!-- binnacle:end -->
    ```

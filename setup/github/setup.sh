@@ -29,6 +29,8 @@ GH=${BINNACLE_GH:-gh}
 bn_require_owner
 repo="$BINNACLE_OWNER/$BINNACLE_REPO"
 template="$BINNACLE_OWNER/$TEMPLATE"
+[ "$(printf '%s' "$repo" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$template" | tr '[:upper:]' '[:lower:]')" ] \
+  || bn_die "BINNACLE_REPO ($BINNACLE_REPO) must differ from the template ($TEMPLATE); nothing was changed"
 
 dry=0
 case "${1:-}" in

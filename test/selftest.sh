@@ -566,6 +566,10 @@ check "names: github --dry-run creates <user>/binnacle-<user> from <user>/binnac
   'env -u BINNACLE_REPO BINNACLE_OWNER=example-user "$1" --dry-run >"$2" 2>&1 \
     && grep -q "example-user/binnacle-example-user" "$2" && grep -q "PATCH repos/example-user/binnacle -F is_template=true" "$2"' \
   _ "$repo/setup/github/setup.sh" "$T/names.out"
+check "names: github setup refuses a vault named like the template, calling nothing" bash -c \
+  '! env BINNACLE_OWNER=example-user BINNACLE_REPO=Binnacle STUB_LOG="$3" "$1" --dry-run >"$2" 2>&1 \
+    && grep -q "must differ from the template" "$2" && ! grep -q "dry-run:" "$2" && test ! -e "$3"' \
+  _ "$repo/setup/github/setup.sh" "$T/names-same.out" "$T/names-same-gh.log"
 check "owner: github setup refuses with no owner" bash -c \
   '! env -u BINNACLE_OWNER "$1/setup/github/setup.sh" --dry-run >"$2" 2>&1 && grep -q "BINNACLE_OWNER=<your-github-user>" "$2"' \
   _ "$T/seed" "$T/owner.out"
