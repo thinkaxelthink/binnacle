@@ -88,10 +88,10 @@ installed on all repositories.
 ## The script
 
 ```sh
-~/src/binnacle-template/setup/work-brain/setup.sh \
+BINNACLE_OWNER=<your-github-user> ~/src/binnacle-template/setup/work-brain/setup.sh \
   --org acme-engineering --user jdoe --git-email jdoe@acme.example
 # safe to re-run; later runs can use the copy inside the vault:
-~/binnacle-acme-engineering-jdoe/setup/work-brain/setup.sh --org acme-engineering --user jdoe
+BINNACLE_OWNER=<your-github-user> ~/binnacle-acme-engineering-jdoe/setup/work-brain/setup.sh --org acme-engineering --user jdoe
 ```
 
 Without `--org` or `--user` it asks for them. `--dir` sets another folder.
@@ -116,10 +116,8 @@ It:
 - tells Claude Code on this machine about the brain
   (`setup/common/register-vault.sh`): registers this template's plugin
   marketplace from your fork, `<your-github-user>/binnacle-template` (from
-  `BINNACLE_MARKETPLACE`, else `BINNACLE_OWNER`, else the `origin` of the
-  template clone you ran it from), recorded in
-  `git config binnacle.marketplace` so later runs from the brain's own copy
-  reuse it, and installs or updates
+  `BINNACLE_MARKETPLACE`, else `BINNACLE_OWNER`; with neither set it skips
+  this step with a message), and installs or updates
   the `binnacle` plugin at user scope with the `claude` CLI (skipped, with
   a message, when `claude` is not installed), then adds or refreshes the
   brain's row (name, path, the company scope above) in the marked block of

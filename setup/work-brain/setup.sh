@@ -111,17 +111,9 @@ else
   bn_ok "existing vault"
 fi
 
-# Where the binnacle Claude Code plugin comes from (bn_marketplace), worked
-# out before BINNACLE_OWNER becomes the commit identity below, and recorded
-# in binnacle.marketplace: a run from the brain's own copy cannot use the
-# brain's origin (an organization), so it reuses the recorded one.
-marketplace=""
-if [ -n "${BINNACLE_MARKETPLACE:-}${BINNACLE_OWNER:-}" ] \
-  || [ "$(bn_physical_path "$BN_CHECKOUT")" != "$(bn_physical_path "$dir")" ]; then
-  marketplace=$(bn_marketplace)
-fi
-[ -n "$marketplace" ] || marketplace=$(git -C "$dir" config --get binnacle.marketplace || true)
-[ -z "$marketplace" ] || git -C "$dir" config binnacle.marketplace "$marketplace"
+# Where the binnacle Claude Code plugin comes from, worked out before
+# BINNACLE_OWNER becomes the commit identity below.
+marketplace=$(bn_marketplace)
 
 bn_log "machine role"
 git -C "$dir" config binnacle.role wiki-writer

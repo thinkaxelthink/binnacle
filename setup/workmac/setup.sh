@@ -2,8 +2,7 @@
 # Set up the work Mac: a read-and-capture-only clone of the vault. Idempotent.
 #
 # Usage: setup/workmac/setup.sh
-# Env:   BINNACLE_OWNER (your GitHub user; default: the owner of this
-#        checkout's github.com origin, i.e. your vault clone), BINNACLE_REPO (binnacle),
+# Env:   BINNACLE_OWNER (required: your GitHub user), BINNACLE_REPO (binnacle),
 #        BINNACLE_DIR (~/binnacle),
 #        BINNACLE_WORK_DOCS - your employer's documents folder; the clone may
 #        never live inside it. Required: taken from this variable, else from

@@ -1,15 +1,11 @@
 # shellcheck shell=bash
 # Shared helpers for the Binnacle setup scripts. Source it; do not run it.
 
-# BINNACLE_OWNER has no default: bn_require_owner works it out.
+# BINNACLE_OWNER, your GitHub user, has no default: bn_require_owner.
 BINNACLE_OWNER=${BINNACLE_OWNER:-}
 BINNACLE_REPO=${BINNACLE_REPO:-binnacle}
 BINNACLE_DIR=${BINNACLE_DIR:-$HOME/binnacle}
 BINNACLE_MIN_OBSIDIAN=${BINNACLE_MIN_OBSIDIAN:-1.13}
-
-# The checkout this file belongs to: your fork of the template, or a vault
-# made from it.
-BN_CHECKOUT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 
 bn_log() { printf '==> %s\n' "$*"; }
 bn_ok() { printf '  ok   %s\n' "$*"; }
@@ -100,51 +96,21 @@ bn_path_is_under() {
   return 1
 }
 
-# bn_github_owner URL: print the account part of a github.com remote URL
-# (https://github.com/OWNER/..., git@github.com:OWNER/...,
-# ssh://git@github.com/OWNER/...), or nothing for any other URL.
-bn_github_owner() {
-  local rest
-  case $1 in
-    https://github.com/*) rest=${1#https://github.com/} ;;
-    git@github.com:*) rest=${1#git@github.com:} ;;
-    ssh://git@github.com/*) rest=${1#ssh://git@github.com/} ;;
-    *) return 0 ;;
-  esac
-  case $rest in ?*/*) printf '%s\n' "${rest%%/*}" ;; esac
-  return 0
-}
-
-# bn_origin_owner DIR: print the GitHub account of the origin remote of the
-# repository holding DIR, or nothing.
-bn_origin_owner() {
-  local top
-  top=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null) || return 0
-  bn_github_owner "$(git -C "$top" remote get-url origin 2>/dev/null || true)"
-}
-
-# bn_require_owner: set BINNACLE_OWNER, your GitHub user, when the
-# environment did not: from the github.com origin of this checkout (your
-# fork of the template, or your vault clone). Dies when neither gives one.
+# bn_require_owner: die before any change unless BINNACLE_OWNER, your
+# GitHub user, is set.
 bn_require_owner() {
-  [ -z "$BINNACLE_OWNER" ] || return 0
-  BINNACLE_OWNER=$(bn_origin_owner "$BN_CHECKOUT")
-  [ -n "$BINNACLE_OWNER" ] || bn_die "cannot tell your GitHub user: $BN_CHECKOUT has no github.com origin. Run this from a clone of your own fork or vault, or set BINNACLE_OWNER=<your-github-user>"
-  bn_ok "BINNACLE_OWNER = $BINNACLE_OWNER (from the origin of $BN_CHECKOUT)"
+  [ -n "$BINNACLE_OWNER" ] || bn_die "set BINNACLE_OWNER=<your-github-user> (your GitHub user) and re-run; nothing was changed"
 }
 
 # bn_marketplace: print where the binnacle Claude Code plugin comes from:
-# BINNACLE_MARKETPLACE, else <owner>/binnacle-template (your fork), the
-# owner being BINNACLE_OWNER or this checkout's github.com origin; nothing
-# when none of them gives one.
+# BINNACLE_MARKETPLACE, else <BINNACLE_OWNER>/binnacle-template (your fork);
+# nothing when neither is set.
 bn_marketplace() {
-  local owner
   if [ -n "${BINNACLE_MARKETPLACE:-}" ]; then
     printf '%s\n' "$BINNACLE_MARKETPLACE"
-    return 0
+  elif [ -n "$BINNACLE_OWNER" ]; then
+    printf '%s/binnacle-template\n' "$BINNACLE_OWNER"
   fi
-  owner=${BINNACLE_OWNER:-$(bn_origin_owner "$BN_CHECKOUT")}
-  [ -z "$owner" ] || printf '%s/binnacle-template\n' "$owner"
 }
 
 # Clone the vault to BINNACLE_DIR, or verify an existing clone.

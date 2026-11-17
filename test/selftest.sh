@@ -552,17 +552,8 @@ check "install-hooks: updates the recorded path when gitleaks moves" bash -c \
 check "github --dry-run: changes nothing, names the check" bash -c \
   'BINNACLE_OWNER=example-user "$1" --dry-run | grep -q "\"context\": \"gitleaks\""' _ "$repo/setup/github/setup.sh"
 
-# No built-in GitHub user: BINNACLE_OWNER, else the owner of the checkout's
-# github.com origin (your fork or vault clone), else a clear refusal.
-check "owner: https origin" test "$(bash -c '. "$1"; bn_github_owner https://github.com/Some-User/binnacle-template.git' _ "$lib")" = Some-User
-check "owner: scp-style ssh origin" test "$(bash -c '. "$1"; bn_github_owner git@github.com:some-user/binnacle' _ "$lib")" = some-user
-check "owner: ssh:// origin" test "$(bash -c '. "$1"; bn_github_owner ssh://git@github.com/some-user/binnacle.git' _ "$lib")" = some-user
-check "owner: none from a non-GitHub origin" test -z "$(bash -c '. "$1"; bn_github_owner "$2"' _ "$lib" "$T/remote.git")"
-git clone -q "$T/seed" "$T/fork"
-git -C "$T/fork" remote set-url origin https://github.com/example-user/binnacle-template.git
-check "owner: github --dry-run takes the owner from the fork's origin" bash -c \
-  'env -u BINNACLE_OWNER "$1/setup/github/setup.sh" --dry-run | grep -q "example-user/binnacle"' _ "$T/fork"
-check "owner: github setup refuses a checkout with no github.com origin" bash -c \
+# No built-in GitHub user: BINNACLE_OWNER is required, else a clear refusal.
+check "owner: github setup refuses with no owner" bash -c \
   '! env -u BINNACLE_OWNER "$1/setup/github/setup.sh" --dry-run >"$2" 2>&1 && grep -q "BINNACLE_OWNER=<your-github-user>" "$2"' \
   _ "$T/seed" "$T/owner.out"
 check "owner: shoyu setup refuses with no owner, before cloning" bash -c \
@@ -1546,11 +1537,6 @@ if [ "$template_rules" = yes ]; then
     _ "$T/plugin.log" "$WH" "$B/setup/work-brain/setup.sh" "$T/wb.out"
   check "work-brain setup: plugin marketplace added from <BINNACLE_OWNER>/binnacle-template" \
     grep -qx "claude plugin marketplace add someowner/binnacle-template --scope user" "$T/plugin.log"
-  : >"$T/plugin.log"
-  check "work-brain setup: re-run from the brain's own copy reuses the recorded marketplace" bash -c \
-    'env -u BINNACLE_OWNER -u BINNACLE_MARKETPLACE STUB_CLAUDE_PLUGIN_LOG="$1" HOME="$2" "$3" --org acme-engineering --user jdoe >"$4" 2>&1 \
-      && grep -qx "claude plugin marketplace add someowner/binnacle-template --scope user" "$1"' \
-    _ "$T/plugin.log" "$WH" "$B/setup/work-brain/setup.sh" "$T/wb.out"
 
   # Collisions: nothing but a new folder or this brain's own vault.
   mkdir -p "$WH/foreign"

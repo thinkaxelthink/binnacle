@@ -44,7 +44,7 @@ shoyu is the only machine where Claude Code writes the wiki. Do
 ## The script
 
 ```sh
-~/binnacle/setup/shoyu/setup.sh   # safe to re-run
+BINNACLE_OWNER=<your-github-user> ~/binnacle/setup/shoyu/setup.sh   # safe to re-run
 ```
 
 It verifies the clone at `~/binnacle`, marks it
@@ -60,8 +60,8 @@ Obsidian >= 1.13.
 It also tells Claude Code on this Mac about the vault
 (`setup/common/register-vault.sh`): it registers this template's plugin
 marketplace from your fork, `<your-github-user>/binnacle-template` (your
-GitHub user comes from `BINNACLE_OWNER`, else the vault clone's `origin`;
-`BINNACLE_MARKETPLACE` names another repository) and installs or updates
+GitHub user comes from `BINNACLE_OWNER`; `BINNACLE_MARKETPLACE` names
+another repository) and installs or updates
 the `binnacle` plugin at user scope with the `claude` CLI (skipped, with a
 message, when `claude` is not installed; a failing `claude` step fails the script, so re-run it), then adds or refreshes the
 vault's row (name, path, scope) in the marked block of

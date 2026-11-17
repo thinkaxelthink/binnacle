@@ -4,8 +4,7 @@
 # session (not a device token). See setup/github/CHECKLIST.md first.
 #
 # Usage: setup/github/setup.sh [--dry-run]
-# Env:   BINNACLE_OWNER (your GitHub user; default: the owner of this
-#        checkout's github.com origin, i.e. your fork), BINNACLE_REPO (binnacle),
+# Env:   BINNACLE_OWNER (required: your GitHub user), BINNACLE_REPO (binnacle),
 #        BINNACLE_TEMPLATE_REPO (binnacle-template),
 #        BINNACLE_SCAN_CHECK (gitleaks) - the required status check, i.e. the
 #        job name in .github/workflows/secret-scan.yml.

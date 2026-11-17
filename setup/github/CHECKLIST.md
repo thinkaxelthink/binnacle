@@ -16,8 +16,8 @@ Do this first, once. Device checklists come after.
 - [ ] **[browser, human]** Fork this template repository into your GitHub
       account, keeping the name `binnacle-template`, so
       `.github/workflows/secret-scan.yml` is on its default branch.
-- [ ] **[any Mac, human]** Clone your fork; the script runs from it and
-      takes your GitHub user from its `origin` (`BINNACLE_OWNER` overrides):
+- [ ] **[any Mac, human]** Clone your fork; the script runs from it, with
+      `BINNACLE_OWNER` set to your GitHub user:
 
       ```sh
       git clone https://github.com/<your-github-user>/binnacle-template.git ~/src/binnacle-template
@@ -27,8 +27,8 @@ Do this first, once. Device checklists come after.
 ## The script
 
 ```sh
-setup/github/setup.sh --dry-run   # shows every call, changes nothing
-setup/github/setup.sh             # safe to re-run
+BINNACLE_OWNER=<your-github-user> setup/github/setup.sh --dry-run   # shows every call, changes nothing
+BINNACLE_OWNER=<your-github-user> setup/github/setup.sh             # safe to re-run
 ```
 
 It marks the template repo as a template, creates `binnacle` from it as a

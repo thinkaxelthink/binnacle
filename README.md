@@ -110,12 +110,12 @@ Every step is either an idempotent script, safe to re-run, or a checklist
 item that names the device it happens on. The checklists are the source of
 truth; this section gives the order.
 
-The scripts have no built-in GitHub account. They take yours from
-`BINNACLE_OWNER` when you set it, and otherwise from the `origin` of the
-clone they run from: your fork of the template, or your vault. When
-neither gives one, they stop and ask you to set
-`BINNACLE_OWNER=<your-github-user>`. In the checklists' clone URLs,
-`<your-github-user>` stands for your GitHub login.
+The scripts have no built-in GitHub account: set `BINNACLE_OWNER` to
+your GitHub login when you run them, for example
+`BINNACLE_OWNER=<your-github-user> setup/github/setup.sh`. Without it the
+GitHub, wiki-writer and capture Mac scripts stop before changing
+anything. In the checklists' clone URLs, `<your-github-user>` stands for
+your GitHub login.
 
 ### Personal vault
 
@@ -133,8 +133,8 @@ neither gives one, they stop and ask you to set
    clone:
 
    ```sh
-   setup/github/setup.sh --dry-run   # shows every call, changes nothing
-   setup/github/setup.sh
+   BINNACLE_OWNER=<your-github-user> setup/github/setup.sh --dry-run   # shows every call, changes nothing
+   BINNACLE_OWNER=<your-github-user> setup/github/setup.sh
    ```
 
    This creates the private repository `<your-github-user>/binnacle`, turns on squash
@@ -143,7 +143,7 @@ neither gives one, they stop and ask you to set
    pushes and branch deletion are blocked. Admins are not enforced, so your
    capture devices can still push straight to `main`.
 3. **Wiki-writer machine.** Follow `setup/shoyu/CHECKLIST.md`, then run
-   `~/binnacle/setup/shoyu/setup.sh`. It marks the clone as the
+   `BINNACLE_OWNER=<your-github-user> ~/binnacle/setup/shoyu/setup.sh`. It marks the clone as the
    wiki-writer, sets the commit identity in the vault clone only, installs
    the pre-commit hook, checks for `git`, `gh`, `claude` and Obsidian, and
    sets up the Claude Code plugin and the vault's row in
@@ -151,7 +151,7 @@ neither gives one, they stop and ask you to set
    The checklist also covers the device token, Obsidian Git settings, and
    a first run.
 4. **Capture Mac** (optional). Follow `setup/workmac/CHECKLIST.md`, then
-   run `~/binnacle/setup/workmac/setup.sh`. It marks the clone as capture
+   run `BINNACLE_OWNER=<your-github-user> ~/binnacle/setup/workmac/setup.sh`. It marks the clone as capture
    only and sets up the Claude Code plugin and vault row as on the
    wiki-writer. It requires `git config --global binnacle.workDocs <folder>`,
    naming your employer's documents folder, and refuses to put the vault
@@ -187,7 +187,7 @@ Follow `setup/work-brain/CHECKLIST.md`. Clone your fork of the template
 somewhere outside any vault, then:
 
 ```sh
-~/src/binnacle-template/setup/work-brain/setup.sh \
+BINNACLE_OWNER=<your-github-user> ~/src/binnacle-template/setup/work-brain/setup.sh \
   --org <github org> --user <github user> --git-email <work email>
 ```
 
@@ -211,9 +211,9 @@ as in the personal vault. Microsoft Forms intake for a work brain is in
 The template carries no content, so a second vault is the same steps with
 different names, for example `garden` at `~/garden`:
 
-1. GitHub, from your fork's clone: `BINNACLE_REPO=garden setup/github/setup.sh`.
+1. GitHub, from your fork's clone: `BINNACLE_OWNER=<your-github-user> BINNACLE_REPO=garden setup/github/setup.sh`.
 2. On each Mac, clone the new repository to its folder, then
-   `BINNACLE_REPO=garden BINNACLE_DIR=~/garden ~/garden/setup/<machine>/setup.sh`.
+   `BINNACLE_OWNER=<your-github-user> BINNACLE_REPO=garden BINNACLE_DIR=~/garden ~/garden/setup/<machine>/setup.sh`.
 3. On the iPhone, add the repository in GitSync (check that your GitSync
    tier allows another one).
 4. Make new tokens scoped to the new repository. Never reuse a token across
@@ -307,9 +307,8 @@ Every vault setup script (`setup/shoyu/setup.sh`,
 `setup/common/register-vault.sh`, which:
 
 1. registers the marketplace in your fork,
-   `<your-github-user>/binnacle-template` (the account as above; a work
-   brain records it in `git config binnacle.marketplace` when it is
-   created; `BINNACLE_MARKETPLACE` names another) and installs or updates the
+   `<your-github-user>/binnacle-template` (the account in
+   `BINNACLE_OWNER`; `BINNACLE_MARKETPLACE` names another) and installs or updates the
    `binnacle` plugin at user scope with the `claude` CLI. Without `claude`
    it skips this step with a message;
 2. adds or refreshes the vault's row in a marked block of

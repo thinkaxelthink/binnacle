@@ -42,7 +42,7 @@ contract material, no credentials.
 ## The script
 
 ```sh
-~/binnacle/setup/workmac/setup.sh   # safe to re-run
+BINNACLE_OWNER=<your-github-user> ~/binnacle/setup/workmac/setup.sh   # safe to re-run
 ```
 
 It refuses to run until `binnacle.workDocs` is set, refuses any vault
@@ -58,8 +58,8 @@ gitleaks + 10 MB pre-commit hook, recording the gitleaks path in
 It also tells Claude Code on this Mac about the vault
 (`setup/common/register-vault.sh`): it registers this template's plugin
 marketplace from your fork, `<your-github-user>/binnacle-template` (your
-GitHub user comes from `BINNACLE_OWNER`, else the vault clone's `origin`;
-`BINNACLE_MARKETPLACE` names another repository) and installs or updates
+GitHub user comes from `BINNACLE_OWNER`; `BINNACLE_MARKETPLACE` names
+another repository) and installs or updates
 the `binnacle` plugin at user scope with the `claude` CLI (skipped, with a
 message, when `claude` is not installed), then adds or refreshes the
 vault's row (name, path, scope) in the marked block of
@@ -72,7 +72,7 @@ You do not set `user.name` or `user.email`
 yourself; to use a different identity, re-run the script with the env vars:
 
 ```sh
-BINNACLE_GIT_NAME="<name>" BINNACLE_GIT_EMAIL="<email>" ~/binnacle/setup/workmac/setup.sh
+BINNACLE_OWNER=<your-github-user> BINNACLE_GIT_NAME="<name>" BINNACLE_GIT_EMAIL="<email>" ~/binnacle/setup/workmac/setup.sh
 ```
 
 ## In Obsidian
