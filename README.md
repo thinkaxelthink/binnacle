@@ -444,4 +444,6 @@ Outside pull requests are welcome: fork the repository, make the change on
 a branch with `test/selftest.sh` passing, and open a pull request against
 `main`.
 
-[TK: license]
+## License
+
+MIT; see [LICENSE](LICENSE).

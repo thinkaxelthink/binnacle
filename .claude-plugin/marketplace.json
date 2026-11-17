@@ -9,7 +9,8 @@
       "name": "binnacle",
       "source": "./plugins/binnacle",
       "description": "Look things up in this machine's Binnacle vaults, capture notes to a vault inbox, and run the wiki ingest.",
-      "category": "productivity"
+      "category": "productivity",
+      "license": "MIT"
     }
   ]
 }
