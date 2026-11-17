@@ -4,14 +4,15 @@
 # session (not a device token). See setup/github/CHECKLIST.md first.
 #
 # Usage: setup/github/setup.sh [--dry-run]
-# Env:   BINNACLE_OWNER (thinkaxelthink), BINNACLE_REPO (binnacle),
-#        BINNACLE_TEMPLATE_REPO (binnacle-template),
+# Env:   BINNACLE_OWNER (required: your GitHub user),
+#        BINNACLE_REPO (binnacle-<user>, e.g. BINNACLE_REPO=binnacle-vault),
+#        BINNACLE_TEMPLATE_REPO (binnacle),
 #        BINNACLE_SCAN_CHECK (gitleaks) - the required status check, i.e. the
 #        job name in .github/workflows/secret-scan.yml.
 #
 # What it does:
-#   1. marks OWNER/binnacle-template as a template repository
-#   2. creates OWNER/binnacle from it as a PRIVATE repo (skipped if it exists)
+#   1. marks OWNER/binnacle (your fork) as a template repository
+#   2. creates OWNER/<BINNACLE_REPO> from it as a PRIVATE repo (skipped if it exists)
 #   3. enables auto-merge (squash) and branch deletion on merge
 #   4. protects main: the scan check must pass before a PR merges; no
 #      reviews required; force pushes and deletion blocked. Admins are not
@@ -22,11 +23,14 @@ here=$(cd "$(dirname "$0")" && pwd -P)
 # shellcheck source=../common/lib.sh
 . "$here/../common/lib.sh"
 
-TEMPLATE=${BINNACLE_TEMPLATE_REPO:-binnacle-template}
+TEMPLATE=${BINNACLE_TEMPLATE_REPO:-binnacle}
 CHECK=${BINNACLE_SCAN_CHECK:-gitleaks}
 GH=${BINNACLE_GH:-gh}
+bn_require_owner
 repo="$BINNACLE_OWNER/$BINNACLE_REPO"
 template="$BINNACLE_OWNER/$TEMPLATE"
+[ "$(printf '%s' "$repo" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$template" | tr '[:upper:]' '[:lower:]')" ] \
+  || bn_die "BINNACLE_REPO ($BINNACLE_REPO) must differ from the template ($TEMPLATE); nothing was changed"
 
 dry=0
 case "${1:-}" in

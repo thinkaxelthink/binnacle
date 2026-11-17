@@ -13,17 +13,26 @@ Do this first, once. Device checklists come after.
       log in as the repo owner: `gh auth login`. This interactive login is
       used only for this one-time admin script; devices use their own
       fine-grained tokens (below).
-- [ ] **[any Mac, human]** `binnacle-template` is pushed to GitHub with
-      `.github/workflows/secret-scan.yml` on its default branch.
+- [ ] **[browser, human]** Fork this template repository into your GitHub
+      account, keeping the name `binnacle`, so
+      `.github/workflows/secret-scan.yml` is on its default branch.
+- [ ] **[any Mac, human]** Clone your fork; the script runs from it, with
+      `BINNACLE_OWNER` set to your GitHub user:
+
+      ```sh
+      git clone https://github.com/<your-github-user>/binnacle.git ~/src/binnacle
+      cd ~/src/binnacle
+      ```
 
 ## The script
 
 ```sh
-setup/github/setup.sh --dry-run   # shows every call, changes nothing
-setup/github/setup.sh             # safe to re-run
+BINNACLE_OWNER=<your-github-user> setup/github/setup.sh --dry-run   # shows every call, changes nothing
+BINNACLE_OWNER=<your-github-user> setup/github/setup.sh             # safe to re-run
 ```
 
-It marks the template repo as a template, creates `binnacle` from it as a
+It marks the template repo as a template, creates your vault, `binnacle-<user>`
+(`BINNACLE_REPO` names another, e.g. `binnacle-vault`), from it as a
 **private** repo, turns on auto-merge (squash) and delete-branch-on-merge,
 and protects `main`:
 
@@ -36,7 +45,7 @@ and protects `main`:
 
 ## After the script
 
-- [ ] **[browser, human]** In `binnacle` > Actions, confirm the
+- [ ] **[browser, human]** In `binnacle-<user>` > Actions, confirm the
       `secret-scan` workflow ran on `main` and its job is named `gitleaks`.
 - [ ] **[browser, human]** Settings > Branches shows the rule on `main`
       with `gitleaks` required.
@@ -53,9 +62,9 @@ token: it reaches every repository you own.
 
 | Device | Repository access | Permissions | Stored in |
 |---|---|---|---|
-| shoyu | Only select repositories: `binnacle` | Contents: read and write; Pull requests: read and write | macOS keychain (git credential helper, and item `binnacle-gh-token` for `gh`, or a mode-600 file when the keychain is unreachable: setup/shoyu/CHECKLIST.md) |
-| work Mac | Only select repositories: `binnacle` | Contents: read and write | macOS keychain (git credential helper) |
-| iPhone | Only select repositories: `binnacle` | Contents: read and write | GitSync |
+| shoyu | Only select repositories: your vault, `binnacle-<user>` or your `BINNACLE_REPO` | Contents: read and write; Pull requests: read and write | macOS keychain (git credential helper, and item `<BINNACLE_REPO>-gh-token` (`binnacle-<user>-gh-token` by default) for `gh`, or a mode-600 file when the keychain is unreachable: setup/shoyu/CHECKLIST.md) |
+| work Mac | Only select repositories: your vault, `binnacle-<user>` or your `BINNACLE_REPO` | Contents: read and write | macOS keychain (git credential helper) |
+| iPhone | Only select repositories: your vault, `binnacle-<user>` or your `BINNACLE_REPO` | Contents: read and write | GitSync |
 
 Metadata: read-only is added automatically. Give each token an expiry and
 a name that says which device holds it, so one device can be revoked alone.

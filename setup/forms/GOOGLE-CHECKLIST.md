@@ -14,7 +14,7 @@ What the scrub does and refuses is in `setup/forms/CHECKLIST.md` ("The
 vault rule change"); it is the same converter. To convert a downloaded
 export by hand instead, see "Personal vault (Google Forms)" there.
 
-The examples use the vault `~/binnacle` and a form named `reading-group`;
+The examples use the vault `~/binnacle-<user>` and a form named `reading-group`;
 use your own.
 
 ## Google Cloud (once)
@@ -51,13 +51,13 @@ All in the browser, signed in to the Google account that owns the forms.
       ```
 
       Elsewhere is fine, outside the vault, mode 600:
-      `git -C ~/binnacle config binnacle.googleClientFile <file>`. The pull
+      `git -C ~/binnacle-<user> config binnacle.googleClientFile <file>`. The pull
       refuses a missing file, a symlink, one inside the vault, or one
       anyone else can read.
 - [ ] **[shoyu, human]** Give consent, at shoyu's desktop:
 
       ```sh
-      ~/binnacle/bin/binnacle-forms-google-pull --consent
+      ~/binnacle-<user>/bin/binnacle-forms-google-pull --consent
       ```
 
       It opens Google's consent page (or prints the link). Choose your
@@ -67,7 +67,7 @@ All in the browser, signed in to the Google account that owns the forms.
       terminal says `consent saved to ~/.config/binnacle/google-forms-token.json
       (mode 600)`. It refuses, saving nothing, unless Google granted
       exactly the two read-only scopes. The token is never printed; to keep
-      it elsewhere, set `git -C ~/binnacle config binnacle.googleTokenFile
+      it elsewhere, set `git -C ~/binnacle-<user> config binnacle.googleTokenFile
       <file>` (outside the vault) first.
 - [ ] **[shoyu, human]** Know the 7-day limit: Google documents that an
       External app in Testing gets consents that expire after 7 days. The
@@ -78,7 +78,7 @@ All in the browser, signed in to the Google account that owns the forms.
       Google's own review rules; check Google's current OAuth verification
       docs before you do.
 - [ ] **[shoyu, human]** Write the stop-list, if you have none yet:
-      `~/binnacle/.binnacle/forms-stoplist`, one term per line (names that
+      `~/binnacle-<user>/.binnacle/forms-stoplist`, one term per line (names that
       might come up in answers, and any other word that must never reach
       the vault), as in `setup/forms/CHECKLIST.md`.
 
@@ -94,7 +94,7 @@ All in the browser, signed in to the Google account that owns the forms.
       become a distribution and a median. File-upload questions are left
       out of the note.
 - [ ] **[shoyu, human]** Write the form's settings, one file per form, in
-      the gitignored `~/binnacle/.binnacle/forms-google/reading-group.conf`:
+      the gitignored `~/binnacle-<user>/.binnacle/forms-google/reading-group.conf`:
 
       ```
       form_title=Reading group check-in
@@ -113,7 +113,7 @@ All in the browser, signed in to the Google account that owns the forms.
       included, local dates in `tz=`, default shoyu's own zone) are the
       collection window and are required. Add `subject=<their name>` only
       for a survey about one person, and `identity=` when not anonymous.
-- [ ] **[shoyu, human]** Try it by hand: `~/binnacle/bin/binnacle-forms-google-pull`
+- [ ] **[shoyu, human]** Try it by hand: `~/binnacle-<user>/bin/binnacle-forms-google-pull`
       (or `... reading-group` for one form). While the window is open it
       says so and fetches nothing.
 
@@ -124,10 +124,10 @@ All in the browser, signed in to the Google account that owns the forms.
       (`setup/shoyu/CHECKLIST.md`, "Nightly runs"):
 
       ```sh
-      git -C ~/binnacle config binnacle.googleFormsPull true
+      git -C ~/binnacle-<user> config binnacle.googleFormsPull true
       ```
 
-      Turn it off with `git -C ~/binnacle config --unset
+      Turn it off with `git -C ~/binnacle-<user> config --unset
       binnacle.googleFormsPull`. In `~/Library/Logs/binnacle/nightly.log`
       the pull sits between `--- <date> forms pull start` and `--- <date>
       forms pull end: exit <status>`. A failed pull never stops the run;

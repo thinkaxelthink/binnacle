@@ -6,7 +6,7 @@ up to date, and the human reads, browses and asks questions in Obsidian.
 This file is the schema: it tells the LLM how the vault is laid out and how
 to maintain it. Read it before every operation and follow it exactly.
 
-(In the `binnacle-template` repository itself there is no content: these
+(In the `binnacle` template repository itself there is no content: these
 rules describe the vault the template produces, and changes to the template
 machinery are ordinary reviewed code changes.)
 

@@ -2,7 +2,7 @@
 
 A work brain is a second, separate Binnacle vault for your job: a company
 brain on your work machine, where Claude Code writes the wiki from the
-sources you capture. It sits beside the personal `~/binnacle` and shares
+sources you capture. It sits beside the personal `~/binnacle-<user>` and shares
 nothing with it but this template. Nothing here changes the personal vault,
 its setup scripts, or the `binnacle.workDocs` guard on the work Mac.
 
@@ -16,12 +16,13 @@ use your own.
   `acme-engineering` and `jdoe`: `binnacle-acme-engineering-jdoe`. The
   same name is used for the folder, the GitHub repository and the keychain
   item for its token (`binnacle-acme-engineering-jdoe-gh-token`).
-- **Folder:** `~/binnacle-acme-engineering-jdoe` by default, beside
-  `~/binnacle`; `--dir` picks another.
+- **Folder:** `~/binnacle-acme-engineering-jdoe` by default, beside your
+  personal vault (`~/binnacle-<user>` by default); `--dir` picks another.
 - **Collisions:** the script refuses a folder that already exists and is
-  not this brain's vault, a vault whose `origin` points elsewhere, and
-  `~/binnacle` or anything inside it or resolving to it through a symlink.
-  It never touches `~/binnacle`.
+  not this brain's vault, a vault whose `origin` points elsewhere, and any
+  personal vault or template checkout, or anything inside one or
+  resolving to one through a symlink. It never touches your personal
+  vault.
 
 ## What may go in
 
@@ -77,20 +78,21 @@ installed on all repositories.
       account your employer approves for this work (`claude`, then follow
       the login prompt).
 - [ ] **[work machine, human]** Install Obsidian.
-- [ ] **[work machine, human]** Clone this template somewhere outside
-      `~/binnacle` (it is public and holds no content):
+- [ ] **[work machine, human]** Clone your fork of this template (see the
+      README, "Your copy of the template") somewhere outside `~/binnacle-<user>`;
+      it holds no content:
 
       ```sh
-      git clone https://github.com/thinkaxelthink/binnacle-template.git ~/src/binnacle-template
+      git clone https://github.com/<your-github-user>/binnacle.git ~/src/binnacle
       ```
 
 ## The script
 
 ```sh
-~/src/binnacle-template/setup/work-brain/setup.sh \
+BINNACLE_OWNER=<your-github-user> ~/src/binnacle/setup/work-brain/setup.sh \
   --org acme-engineering --user jdoe --git-email jdoe@acme.example
 # safe to re-run; later runs can use the copy inside the vault:
-~/binnacle-acme-engineering-jdoe/setup/work-brain/setup.sh --org acme-engineering --user jdoe
+BINNACLE_OWNER=<your-github-user> ~/binnacle-acme-engineering-jdoe/setup/work-brain/setup.sh --org acme-engineering --user jdoe
 ```
 
 Without `--org` or `--user` it asks for them. `--dir` sets another folder.
@@ -112,6 +114,18 @@ It:
   path, then makes the first commit through it;
 - records the template commit it was built from
   (`binnacle.templateBase`), where `update.sh` starts;
+- tells Claude Code on this machine about the brain
+  (`setup/common/register-vault.sh`): registers this template's plugin
+  marketplace from your fork, `<your-github-user>/binnacle` (from
+  `BINNACLE_MARKETPLACE`, else `BINNACLE_OWNER`; with neither set it skips
+  this step with a message), and installs or updates
+  the `binnacle` plugin at user scope with the `claude` CLI (skipped, with
+  a message, when `claude` is not installed), then adds or refreshes the
+  brain's row (name, path, the company scope above) in the marked block of
+  `~/.claude/CLAUDE.md`, between `<!-- binnacle:begin -->` and
+  `<!-- binnacle:end -->`. Nothing outside the block changes, and re-runs
+  add no duplicate. A brain built before this step gets it from a re-run
+  of `setup.sh` (after `update.sh` brings the script in);
 - checks `git`, `claude`, `gh` and Obsidian (warnings only).
 
 ## In Obsidian
@@ -239,8 +253,8 @@ step. Your notes and the wiki are never touched.
       `gh` in. Then:
 
       ```sh
-      git -C ~/src/binnacle-template pull
-      ~/src/binnacle-template/setup/work-brain/update.sh ~/binnacle-acme-engineering-jdoe
+      git -C ~/src/binnacle pull
+      ~/src/binnacle/setup/work-brain/update.sh ~/binnacle-acme-engineering-jdoe
       ```
 
       It finds the template commit the brain was built from
@@ -269,5 +283,5 @@ step. Your notes and the wiki are never touched.
       (on any other clone, copy `.binnacle/` aside before pulling). The next `update.sh` run sees the merged PR and
       records the new base (a closed, unmerged PR leaves the base as it
       was). It refuses while that PR, or any other update PR, is open.
-- [ ] **[work machine, human]** It refuses `~/binnacle`, which is updated
-      by its own setup, and any folder that is not a work brain.
+- [ ] **[work machine, human]** It refuses your personal vault, which is
+      updated by its own setup, and any folder that is not a work brain.

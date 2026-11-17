@@ -1,0 +1,16 @@
+{
+  "name": "binnacle",
+  "owner": {
+    "name": "binnacle"
+  },
+  "description": "Claude Code plugins for Binnacle vaults: LLM-maintained Obsidian wikis built from this template.",
+  "plugins": [
+    {
+      "name": "binnacle",
+      "source": "./plugins/binnacle",
+      "description": "Look things up in this machine's Binnacle vaults, capture notes to a vault inbox, and run the wiki ingest.",
+      "category": "productivity",
+      "license": "MIT"
+    }
+  ]
+}

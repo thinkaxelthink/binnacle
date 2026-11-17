@@ -15,16 +15,17 @@ or token into a note, and keep attachments under 10 MB.
       standalone iOS app, not an Obsidian community plugin. Obsidian's
       plugin list has look-alikes, "GitSync Portal" (Kai Liu) and
       "GitSync.md Connect" (codybontecou); do not install them.
-- [ ] **[iPhone, human]** Create the iPhone fine-grained token (binnacle
-      only; Contents read/write; see the GitHub checklist).
+- [ ] **[iPhone, human]** Create the iPhone fine-grained token (the vault
+      repository, `binnacle-<user>` or your `BINNACLE_REPO`, only;
+      Contents read/write; see the GitHub checklist).
 
 ## Clone
 
 - [ ] **[iPhone, human]** In Obsidian, create an empty vault named
-      `binnacle` stored on the iPhone (not iCloud), then close Obsidian.
+      `binnacle-<user>` stored on the iPhone (not iCloud), then close Obsidian.
 - [ ] **[iPhone, human]** In GitSync, add the repository
-      `https://github.com/thinkaxelthink/binnacle.git` with HTTPS and the
-      token, and point it at Obsidian's `binnacle` vault folder. Let it
+      `https://github.com/<your-github-user>/binnacle-<user>.git` with HTTPS and the
+      token, and point it at Obsidian's `binnacle-<user>` vault folder. Let it
       clone.
 - [ ] **[iPhone, human]** Open Obsidian; the vault shows `raw/`,
       `soundings/`, `wiki/`, `audit/`.
@@ -43,15 +44,15 @@ on close it commits and pushes the new notes. Source:
 (the action's definition) and
 <https://github.com/ViscousPot/GitSync> (README feature list: what a sync does).
 
-- [ ] **[iPhone, human]** In GitSync, open the `binnacle` repository's
+- [ ] **[iPhone, human]** In GitSync, open the `binnacle-<user>` repository's
       **Quick Sync Settings** and turn on **Use for Sync Shortcut**, so
-      **Sync Now** acts on `binnacle`.
+      **Sync Now** acts on `binnacle-<user>`.
 - [ ] **[iPhone, human]** Shortcuts > Automation > New > App > Obsidian >
       **Is Opened** > Run Immediately. Action: GitSync's **Sync Now**
-      (pulls the `binnacle` repository).
+      (pulls the `binnacle-<user>` repository).
 - [ ] **[iPhone, human]** Shortcuts > Automation > New > App > Obsidian >
       **Is Closed** > Run Immediately. Action: GitSync's **Sync Now**
-      (commits and pushes the `binnacle` repository).
+      (commits and pushes the `binnacle-<user>` repository).
 - [ ] **[iPhone, human]** Test: add a note in `raw/inbox/`, close Obsidian,
       check the commit on GitHub and that the `gitleaks` check passed.
 

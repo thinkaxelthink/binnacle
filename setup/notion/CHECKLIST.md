@@ -95,22 +95,22 @@ What those sources establish:
 
 ## C. Import on shoyu
 
-- [ ] **[shoyu, owner]** Have a checkout of `binnacle-template` (public)
-      for the script; it works on `~/binnacle` without changing the
-      vault's own copy of the template:
+- [ ] **[shoyu, owner]** Have a checkout of your fork of
+      the `binnacle` template for the script; it works on `~/binnacle-<user>` without
+      changing the vault's own copy of the template:
 
       ```sh
-      git clone https://github.com/thinkaxelthink/binnacle-template.git ~/binnacle-template
+      git clone https://github.com/<your-github-user>/binnacle.git ~/src/binnacle
       # or, if it is already there:
-      git -C ~/binnacle-template pull --ff-only
+      git -C ~/src/binnacle pull --ff-only
       ```
 - [ ] **[shoyu, owner]** Make the vault ignore Importer's settings file
       (vaults made from this template before the Notion import need this
       once; `start` refuses otherwise):
 
       ```sh
-      grep -qxF '.obsidian/plugins/obsidian-importer/data.json' ~/binnacle/.gitignore \
-        || printf '%s\n' '.obsidian/plugins/obsidian-importer/data.json' >>~/binnacle/.gitignore
+      grep -qxF '.obsidian/plugins/obsidian-importer/data.json' ~/binnacle-<user>/.gitignore \
+        || printf '%s\n' '.obsidian/plugins/obsidian-importer/data.json' >>~/binnacle-<user>/.gitignore
       ```
 - [ ] **[shoyu, owner]** In Obsidian: Settings > Community plugins >
       Browse, install **Importer** (by Obsidian) and enable it. It needs
@@ -126,15 +126,16 @@ What those sources establish:
 - [ ] **[shoyu, owner]** Start the branch:
 
       ```sh
-      ~/binnacle-template/bin/binnacle-import start
+      BINNACLE_DIR=~/binnacle-<user> ~/src/binnacle/bin/binnacle-import start
       ```
 
-      It refuses unless `~/binnacle` is the wiki-writer clone, on `main`,
+      It refuses unless `~/binnacle-<user>` is the wiki-writer clone, on `main`,
       clean and equal to `origin/main`. It creates
       `import/notion-<UTC timestamp>`, records it in
       `git config binnacle.importBranch` (while it is set,
       `bin/binnacle-run`, by hand or nightly, skips without doing
-      anything) and is safe to re-run. `bin/binnacle-import status`
+      anything) and is safe to re-run. `bin/binnacle-import status` (with
+      the same `BINNACLE_DIR`)
       shows where things stand.
 - [ ] **[shoyu, owner]** Open Importer (command palette: **Importer:
       Import notes**, or the ribbon icon), choose **Notion**, then
@@ -169,7 +170,7 @@ What those sources establish:
 - [ ] **[shoyu, owner]** Run:
 
       ```sh
-      ~/binnacle-template/bin/binnacle-import finish
+      BINNACLE_DIR=~/binnacle-<user> ~/src/binnacle/bin/binnacle-import finish
       ```
 
       It refuses, and lists the paths, if anything changed outside
@@ -187,23 +188,23 @@ What those sources establish:
       On success it pushes the branch, opens a PR to `main` with counts
       (files, notes, attachments, bases, total size) and an empty
       "Fidelity notes" section, does **not** enable auto-merge, switches
-      `~/binnacle` back to `main` and clears `binnacle.importBranch`.
+      `~/binnacle-<user>` back to `main` and clears `binnacle.importBranch`.
       Many files still go in one PR. Re-running finds the existing PR.
 
 ## E. Review, merge, resume
 
 - [ ] **[shoyu or browser, owner]** Do the fidelity spot-checks below on
-      the import branch (on GitHub, or `git -C ~/binnacle switch
+      the import branch (on GitHub, or `git -C ~/binnacle-<user> switch
       import/notion-<timestamp>` and look in Obsidian, then switch back
       to `main`). Write the findings into the PR's "Fidelity notes".
 - [ ] **[browser, owner]** Confirm the `gitleaks` check is green, then
       merge the PR yourself.
 - [ ] **[shoyu, owner]** Resume Obsidian Git: command palette,
       **Obsidian Git: Pause/Resume automatic routines** ("Resumed
-      automatic routines."). It pulls the merged import into `~/binnacle`.
+      automatic routines."). It pulls the merged import into `~/binnacle-<user>`.
 - [ ] **[shoyu, owner]** Confirm on GitHub that the PR is merged, then
       delete the local branch:
-      `git -C ~/binnacle branch -D import/notion-<timestamp>` (`-D`,
+      `git -C ~/binnacle-<user> branch -D import/notion-<timestamp>` (`-D`,
       because a squash merge makes `-d` refuse).
 
 ## F. Close the door on Notion

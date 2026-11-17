@@ -2,8 +2,9 @@
 # Set up the work Mac: a read-and-capture-only clone of the vault. Idempotent.
 #
 # Usage: setup/workmac/setup.sh
-# Env:   BINNACLE_OWNER (thinkaxelthink), BINNACLE_REPO (binnacle),
-#        BINNACLE_DIR (~/binnacle),
+# Env:   BINNACLE_OWNER (required: your GitHub user),
+#        BINNACLE_REPO (binnacle-<user>, e.g. BINNACLE_REPO=binnacle-vault),
+#        BINNACLE_DIR (~/<BINNACLE_REPO>),
 #        BINNACLE_WORK_DOCS - your employer's documents folder; the clone may
 #        never live inside it. Required: taken from this variable, else from
 #        `git config --global binnacle.workDocs` (set by a CHECKLIST.md step).
@@ -22,6 +23,9 @@ here=$(cd "$(dirname "$0")" && pwd -P)
 # shellcheck source=../common/lib.sh
 . "$here/../common/lib.sh"
 
+bn_log "GitHub user"
+bn_require_owner
+
 bn_log "location guard"
 BINNACLE_WORK_DOCS=${BINNACLE_WORK_DOCS:-$(git config --global --get binnacle.workDocs || true)}
 # A literal leading ~ (as git config stores it) means $HOME.
@@ -37,7 +41,7 @@ case $BINNACLE_WORK_DOCS in
   *) bn_die "binnacle.workDocs must be an absolute path, got '$BINNACLE_WORK_DOCS'" ;;
 esac
 if bn_path_is_under "$BINNACLE_DIR" "$BINNACLE_WORK_DOCS"; then
-  bn_die "refusing: $BINNACLE_DIR is inside $BINNACLE_WORK_DOCS. Keep the vault outside work folders (default ~/binnacle)."
+  bn_die "refusing: $BINNACLE_DIR is inside $BINNACLE_WORK_DOCS. Keep the vault outside work folders (default ~/binnacle-<user>)."
 fi
 bn_ok "$BINNACLE_DIR is outside $BINNACLE_WORK_DOCS"
 
@@ -53,6 +57,11 @@ bn_set_git_identity
 
 bn_log "hooks"
 "$BINNACLE_DIR/setup/common/install-hooks.sh" "$BINNACLE_DIR"
+
+bn_log "Claude Code: binnacle plugin and vault list"
+BINNACLE_MARKETPLACE=$(bn_marketplace) \
+  "$here/../common/register-vault.sh" "$BINNACLE_REPO" "$BINNACLE_DIR" "$BN_PERSONAL_SCOPE" \
+  || bn_warn "the binnacle Claude Code plugin step failed (see above); re-run this script to retry"
 
 bn_log "Obsidian"
 ver=$(bn_obsidian_version)

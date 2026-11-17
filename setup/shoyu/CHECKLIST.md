@@ -18,12 +18,15 @@ shoyu is the only machine where Claude Code writes the wiki. Do
       follow the login prompt).
 - [ ] **[shoyu, human]** Install or update Obsidian to 1.13 or later
       (obsidian.md, or Settings > General > Check for updates).
-- [ ] **[shoyu, human]** Create the shoyu fine-grained token (binnacle only;
-      Contents and Pull requests read/write; see the GitHub checklist).
+- [ ] **[shoyu, human]** Create the shoyu fine-grained token (the vault repository,
+      `binnacle-<user>` or your `BINNACLE_REPO`, only; Contents and Pull
+      requests read/write; see the GitHub checklist).
 - [ ] **[shoyu, human]** Store it for `gh`, which `bin/binnacle-run` uses to
       open PRs and enable auto-merge:
-      `security add-generic-password -U -s binnacle-gh-token -a "$USER" -w`
-      (prompts for the token; nothing lands in shell history).
+      `security add-generic-password -U -s <BINNACLE_REPO>-gh-token -a "$USER" -w`
+      (`binnacle-<user>-gh-token` by default, e.g. `binnacle-vault-gh-token`
+      with `BINNACLE_REPO=binnacle-vault`; prompts for the token; nothing
+      lands in shell history).
 
       If the keychain is unreachable from the session that runs
       `bin/binnacle-run` (e.g. over SSH, where `security` fails with "User
@@ -38,16 +41,22 @@ shoyu is the only machine where Claude Code writes the wiki. Do
       keeps it for later pushes.
 
       ```sh
-      git clone https://github.com/thinkaxelthink/binnacle.git ~/binnacle
+      git clone https://github.com/<your-github-user>/binnacle-<user>.git ~/binnacle-<user>
       ```
 
 ## The script
 
 ```sh
-~/binnacle/setup/shoyu/setup.sh   # safe to re-run
+BINNACLE_OWNER=<your-github-user> ~/binnacle-<user>/setup/shoyu/setup.sh   # safe to re-run
 ```
 
-It verifies the clone at `~/binnacle`, marks it
+`<user>` is your GitHub login in lower case: the vault defaults to the
+repository `binnacle-<user>` in `~/binnacle-<user>`. If yours has another
+name, clone it to its own folder and pass `BINNACLE_REPO` (it moves the
+default folder with it), e.g.
+`BINNACLE_OWNER=<your-github-user> BINNACLE_REPO=binnacle-vault ~/binnacle-vault/setup/shoyu/setup.sh`.
+
+It verifies the clone at `~/binnacle-<user>`, marks it
 `git config binnacle.role wiki-writer`, sets the commit identity in the
 vault clone only (`user.name` from `BINNACLE_GIT_NAME`, else the existing
 local name, else `BINNACLE_OWNER`; `user.email` from `BINNACLE_GIT_EMAIL`,
@@ -57,9 +66,22 @@ gitleaks + 10 MB pre-commit hook and records the gitleaks path in
 `git config binnacle.gitleaks`, and checks `git`, `gh`, `claude`, and
 Obsidian >= 1.13.
 
+It also tells Claude Code on this Mac about the vault
+(`setup/common/register-vault.sh`): it registers this template's plugin
+marketplace from your fork, `<your-github-user>/binnacle` (your
+GitHub user comes from `BINNACLE_OWNER`; `BINNACLE_MARKETPLACE` names
+another repository) and installs or updates
+the `binnacle` plugin at user scope with the `claude` CLI (skipped, with a
+message, when `claude` is not installed; a failing `claude` step fails the script, so re-run it), then adds or refreshes the
+vault's row (name, path, scope) in the marked block of
+`~/.claude/CLAUDE.md`, between `<!-- binnacle:begin -->` and
+`<!-- binnacle:end -->`, so every Claude session here knows the vault
+exists and how to use it. Nothing outside the block changes, and re-runs
+add no duplicate row or marketplace.
+
 ## In Obsidian
 
-- [ ] **[shoyu, human]** Open folder as vault: `~/binnacle`. Signing in to
+- [ ] **[shoyu, human]** Open folder as vault: `~/binnacle-<user>`. Signing in to
       an Obsidian account is optional; git is the sync, not Obsidian Sync.
 - [ ] **[shoyu, human]** Settings > Community plugins: turn them on, install
       and enable **Obsidian Git**.
@@ -78,11 +100,11 @@ Obsidian >= 1.13.
       Git push it, then:
 
       ```sh
-      ~/binnacle/bin/binnacle-run --dry-run
-      ~/binnacle/bin/binnacle-run
+      ~/binnacle-<user>/bin/binnacle-run --dry-run
+      ~/binnacle-<user>/bin/binnacle-run
       ```
 
-      The run happens in a temporary worktree; `~/binnacle` stays on `main`.
+      The run happens in a temporary worktree; `~/binnacle-<user>` stays on `main`.
       Expect a PR URL, auto-merge on, and a new note in `audit/runs/` after
       the merge.
 
@@ -107,19 +129,19 @@ Nothing is scheduled until you install it; `setup.sh` never does.
       else `binnacle.ghTokenFile`. If your login keychain locks itself (on
       sleep or after a timeout), a 03:30 run may wait on an unlock prompt:
       in that case keep the token only in the file and delete the keychain
-      item (`security delete-generic-password -s binnacle-gh-token`).
+      item (`security delete-generic-password -s <BINNACLE_REPO>-gh-token`).
 - [ ] **[shoyu, human]** Install, on shoyu while logged in to its desktop:
 
       ```sh
-      ~/binnacle/setup/shoyu/nightly.sh install
+      ~/binnacle-<user>/setup/shoyu/nightly.sh install
       # or another time (24-hour, local), e.g. 02:15:
-      BINNACLE_NIGHTLY_HOUR=2 BINNACLE_NIGHTLY_MINUTE=15 ~/binnacle/setup/shoyu/nightly.sh install
+      BINNACLE_NIGHTLY_HOUR=2 BINNACLE_NIGHTLY_MINUTE=15 ~/binnacle-<user>/setup/shoyu/nightly.sh install
       ```
 
       It writes `~/Library/LaunchAgents/com.binnacle.nightly.plist` and
       loads it with `launchctl bootstrap gui/<uid>` (no sudo). Re-run it to
       change the time.
-- [ ] **[shoyu, human]** Check it: `~/binnacle/setup/shoyu/nightly.sh status`
+- [ ] **[shoyu, human]** Check it: `~/binnacle-<user>/setup/shoyu/nightly.sh status`
       shows whether it is installed and loaded, its time, the last exit
       code launchd saw, and the start and end lines of the last run.
 
@@ -135,7 +157,7 @@ Code's own output for a run stays in the temporary folder the log names.
 If launchd cannot start the wrapper at all, its error is in
 `~/Library/Logs/binnacle/launchd.log`.
 
-**Pausing.** `~/binnacle/setup/shoyu/nightly.sh uninstall` unloads the job
+**Pausing.** `~/binnacle-<user>/setup/shoyu/nightly.sh uninstall` unloads the job
 and deletes the plist; `install` again resumes it.
 
 How it behaves:
@@ -147,21 +169,21 @@ How it behaves:
   (a locked screen is fine). After a restart nothing runs until you log in
   again. If shoyu cannot stay logged in, the alternative is a cron entry
   for the shoyu user (`crontab -e`, e.g.
-  `30 3 * * * $HOME/binnacle/bin/binnacle-nightly`): it runs without a
+  `30 3 * * * $HOME/binnacle-<user>/bin/binnacle-nightly`): it runs without a
   login, but skips nights shoyu was asleep and needs
   `binnacle.ghTokenFile`, because the keychain is out of reach. The
   template does not set cron up.
 - **Notion import.** While an import is in progress (`git config
-  binnacle.importBranch` is set in `~/binnacle`), runs log "skipped: import
+  binnacle.importBranch` is set in `~/binnacle-<user>`), runs log "skipped: import
   in progress" and do nothing; the first run after the import finishes
   picks up the inbox. A local `import/*` branch left behind after the
   import does not stop runs.
-- **One run at a time.** A run holds `~/binnacle/.git/binnacle-run.lock`;
+- **One run at a time.** A run holds `~/binnacle-<user>/.git/binnacle-run.lock`;
   a run started meanwhile (by hand or by the schedule) logs "skipped:
   another binnacle-run is in progress". A lock left by a crashed run is
   cleared automatically.
 - **Obsidian Git.** The run works in a temporary worktree from
-  `origin/main` and never checks out, commits or pushes in `~/binnacle`,
+  `origin/main` and never checks out, commits or pushes in `~/binnacle-<user>`,
   so Obsidian Git's pull and commit-and-sync carry on as usual. The run's
   `git fetch` writes only its own ref `refs/binnacle-run/base`; it never
   touches `refs/remotes/origin/main` or `FETCH_HEAD`, which Obsidian Git's

@@ -13,7 +13,7 @@
 #   status     whether it is installed and loaded, its time, the last exit
 #              code launchd saw, and the last run in the nightly log.
 #
-# Env:   BINNACLE_DIR (~/binnacle), BINNACLE_NIGHTLY_HOUR (3),
+# Env:   BINNACLE_DIR (the vault this script is in), BINNACLE_NIGHTLY_HOUR (3),
 #        BINNACLE_NIGHTLY_MINUTE (30): local time, 24-hour clock.
 #
 # setup/shoyu/setup.sh never runs this: scheduling is a separate, explicit
@@ -23,6 +23,7 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd -P)
 # shellcheck source=../common/lib.sh
 . "$here/../common/lib.sh"
+BINNACLE_DIR=${BINNACLE_DIR:-$(cd "$here/../.." && pwd -P)}
 
 label=com.binnacle.nightly
 template=$here/launchd/$label.plist
