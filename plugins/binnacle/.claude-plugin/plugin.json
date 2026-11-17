@@ -1,0 +1,9 @@
+{
+  "name": "binnacle",
+  "version": "0.1.0",
+  "description": "Look things up in this machine's Binnacle vaults, capture notes to a vault inbox, and run the wiki ingest.",
+  "author": {
+    "name": "binnacle-template"
+  },
+  "keywords": ["binnacle", "obsidian", "wiki", "llm-wiki", "notes"]
+}

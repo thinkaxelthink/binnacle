@@ -57,6 +57,20 @@ gitleaks + 10 MB pre-commit hook and records the gitleaks path in
 `git config binnacle.gitleaks`, and checks `git`, `gh`, `claude`, and
 Obsidian >= 1.13.
 
+It also tells Claude Code on this Mac about the vault
+(`setup/common/register-vault.sh`): it registers this template's plugin
+marketplace (`<BINNACLE_OWNER>/binnacle-template`, by default
+`thinkaxelthink/binnacle-template`; `BINNACLE_MARKETPLACE` names another)
+and installs or updates
+the `binnacle` plugin at user scope with the `claude` CLI (skipped, with a
+message, when `claude` is not installed; a failing `claude` step fails the script, so re-run it), then adds or refreshes the
+vault's row (name, path, scope) in the marked block of
+`~/.claude/CLAUDE.md`, between `<!-- binnacle:begin -->` and
+`<!-- binnacle:end -->`, so every Claude session here knows the vault
+exists and how to use it. Nothing outside the block changes, and re-runs
+add no duplicate row or marketplace. To take a vault off the list:
+`~/binnacle/setup/common/register-vault.sh --remove ~/binnacle`.
+
 ## In Obsidian
 
 - [ ] **[shoyu, human]** Open folder as vault: `~/binnacle`. Signing in to

@@ -129,3 +129,138 @@ bn_set_git_identity() {
   git -C "$BINNACLE_DIR" config --local user.email "$git_email"
   bn_ok "commits in $BINNACLE_DIR authored as $git_name <$git_email>"
 }
+
+# --- Claude Code: the binnacle plugin and the per-machine vault list ---------
+# The marketplace this template publishes (.claude-plugin/marketplace.json)
+# and the plugin in it. setup/common/register-vault.sh uses them.
+BINNACLE_MARKETPLACE=${BINNACLE_MARKETPLACE:-$BINNACLE_OWNER/${BINNACLE_TEMPLATE_REPO:-binnacle-template}}
+BN_MARKETPLACE_NAME=binnacle-template
+BN_PLUGIN=binnacle@$BN_MARKETPLACE_NAME
+# The scope line of a personal vault in the vault list.
+# shellcheck disable=SC2034 # used by the setup scripts that source this file
+BN_PERSONAL_SCOPE="personal: the owner's own thinking and architectural learnings; never company material"
+BN_BLOCK_BEGIN='<!-- binnacle:begin -->'
+BN_BLOCK_END='<!-- binnacle:end -->'
+
+# bn_claude_md: print the path of the user's Claude Code memory file.
+bn_claude_md() { printf '%s\n' "$HOME/.claude/CLAUDE.md"; }
+
+# bn_vault_row NAME DIR SCOPE: print one vault-list row.
+# shellcheck disable=SC2016 # the backticks are Markdown, not a command
+bn_vault_row() { printf -- '- **%s** at `%s`: %s\n' "$1" "$2" "$3"; }
+
+# bn_vault_block_head / bn_vault_block_tail: the fixed text around the rows.
+bn_vault_block_head() {
+  cat <<'MD'
+## Binnacle vaults
+
+Binnacle vaults on this machine: Obsidian wikis that an LLM keeps up to
+date, after Karpathy's "LLM Wiki" pattern. Each vault's setup keeps this
+block up to date (`setup/common/register-vault.sh`); edit outside it.
+
+MD
+}
+bn_vault_block_tail() {
+  cat <<'MD'
+
+When a question may be answered in one of these vaults:
+
+- Read that vault's `wiki/index.md` first (its `CLAUDE.md` is the schema),
+  open the relevant pages, and cite them.
+- Treat the wiki as a lead, not the last word: verify volatile facts
+  (versions, prices, dates, who does what) against a current source.
+- Never edit `wiki/`, `audit/`, `raw/sources/` or `soundings/` directly;
+  only `bin/binnacle-run` writes the wiki.
+- Capture new material to the vault's `raw/inbox/`, then commit and push
+  only that file; leave any other uncommitted changes alone.
+- Keep work material out of personal vaults.
+- Never put secrets, credentials or restricted data in any vault.
+- Use the `binnacle` skill for lookups, captures and runs.
+MD
+}
+
+# bn_vault_list_edit FILE DIR [ROW]: with ROW, add or refresh DIR's row in
+# the marked block of FILE (creating FILE or the block when absent); without
+# ROW, remove DIR's row, and the block once it lists no vault. Rows are keyed
+# by the vault path; the block's fixed text is rewritten each time; nothing
+# outside the block changes. Dies on a malformed block (a marker missing,
+# repeated or out of order), leaving FILE as it was.
+bn_vault_list_edit() {
+  local file=$1 dir=$2 row=${3:-} begins ends src tmp
+  if [ -e "$file" ]; then
+    begins=$(grep -cxF -- "$BN_BLOCK_BEGIN" "$file" || true)
+    ends=$(grep -cxF -- "$BN_BLOCK_END" "$file" || true)
+    if [ "$begins" != "$ends" ] || [ "$begins" -gt 1 ] || { [ "$begins" = 1 ] \
+      && [ "$(grep -nxF -- "$BN_BLOCK_BEGIN" "$file" | cut -d: -f1)" -gt "$(grep -nxF -- "$BN_BLOCK_END" "$file" | cut -d: -f1)" ]; }; then
+      bn_die "$file has a malformed binnacle block (one '$BN_BLOCK_BEGIN' line, then one '$BN_BLOCK_END' line expected); fix it by hand and re-run"
+    fi
+  elif [ -z "$row" ]; then
+    return 0
+  else
+    mkdir -p "$(dirname "$file")"
+  fi
+  src=$file
+  [ -e "$file" ] || src=/dev/null
+  tmp=$(mktemp "${TMPDIR:-/tmp}/binnacle-claude-md.XXXXXX")
+  BN_DIR=$dir BN_ROW=$row BN_BEGIN=$BN_BLOCK_BEGIN BN_END=$BN_BLOCK_END \
+    BN_HEAD=$(bn_vault_block_head) BN_TAIL=$(bn_vault_block_tail) \
+    awk '
+      function key(line,  i, rest, j) { # the path of a row, or ""
+        if (line !~ /^- \*\*.*\*\* at `/) return ""
+        i = index(line, "** at `"); rest = substr(line, i + 7)
+        j = index(rest, "`: "); return j ? substr(rest, 1, j - 1) : ""
+      }
+      function emit(  i, n, out, done) {
+        n = 0; done = 0
+        for (i = 1; i <= nrows; i++) {
+          if (key(rows[i]) == ENVIRON["BN_DIR"]) {
+            if (!done && ENVIRON["BN_ROW"] != "") out[++n] = ENVIRON["BN_ROW"]
+            done = 1
+          } else out[++n] = rows[i]
+        }
+        if (!done && ENVIRON["BN_ROW"] != "") out[++n] = ENVIRON["BN_ROW"]
+        if (n == 0) return
+        print ENVIRON["BN_BEGIN"]; print ENVIRON["BN_HEAD"]; print ""
+        for (i = 1; i <= n; i++) print out[i]
+        print ENVIRON["BN_TAIL"]; print ENVIRON["BN_END"]
+      }
+      state == 0 && $0 == ENVIRON["BN_BEGIN"] { state = 1; next }
+      state == 1 && $0 == ENVIRON["BN_END"] { state = 2; emit(); next }
+      state == 1 { if (key($0) != "") rows[++nrows] = $0; next }
+      { print; last = $0; lines++ }
+      END {
+        if (state == 0 && ENVIRON["BN_ROW"] != "") {
+          if (lines > 0 && last != "") print ""
+          emit()
+        }
+      }
+    ' "$src" >"$tmp" || {
+    rm -f "$tmp"
+    bn_die "could not rewrite $file"
+  }
+  # Write through any symlink (a dotfiles-managed CLAUDE.md stays a link).
+  cat "$tmp" >"$file"
+  rm -f "$tmp"
+}
+
+# bn_claude_plugin: register this template's marketplace and install or
+# update the binnacle plugin at user scope with the claude CLI
+# (BINNACLE_CLAUDE, default claude). Each step is idempotent: re-adding a
+# marketplace or reinstalling a plugin that is already there changes
+# nothing. Skips, successfully and with a message, when claude is not
+# installed; fails when a claude step fails.
+bn_claude_plugin() {
+  local claude=${BINNACLE_CLAUDE:-claude}
+  if ! command -v "$claude" >/dev/null 2>&1; then
+    bn_warn "claude not found: skipped the binnacle Claude Code plugin. Install Claude Code, then re-run this setup"
+    return 0
+  fi
+  if ! { "$claude" plugin marketplace add "$BINNACLE_MARKETPLACE" --scope user >/dev/null \
+    && "$claude" plugin marketplace update "$BN_MARKETPLACE_NAME" >/dev/null \
+    && "$claude" plugin install "$BN_PLUGIN" --scope user >/dev/null \
+    && "$claude" plugin update "$BN_PLUGIN" --scope user >/dev/null; }; then
+    bn_warn "the claude CLI could not install $BN_PLUGIN from $BINNACLE_MARKETPLACE; re-run this setup once it can (network, login)"
+    return 1
+  fi
+  bn_ok "Claude Code plugin $BN_PLUGIN installed and up to date (marketplace $BINNACLE_MARKETPLACE, user scope)"
+}

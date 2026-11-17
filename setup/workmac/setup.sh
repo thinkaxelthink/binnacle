@@ -54,6 +54,10 @@ bn_set_git_identity
 bn_log "hooks"
 "$BINNACLE_DIR/setup/common/install-hooks.sh" "$BINNACLE_DIR"
 
+bn_log "Claude Code: binnacle plugin and vault list"
+"$here/../common/register-vault.sh" "$BINNACLE_REPO" "$BINNACLE_DIR" "$BN_PERSONAL_SCOPE" \
+  || bn_warn "the binnacle Claude Code plugin step failed (see above); re-run this script to retry"
+
 bn_log "Obsidian"
 ver=$(bn_obsidian_version)
 if [ -n "$ver" ]; then

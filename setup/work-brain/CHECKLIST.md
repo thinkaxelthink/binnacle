@@ -112,6 +112,20 @@ It:
   path, then makes the first commit through it;
 - records the template commit it was built from
   (`binnacle.templateBase`), where `update.sh` starts;
+- tells Claude Code on this machine about the brain
+  (`setup/common/register-vault.sh`): registers this template's plugin
+  marketplace (`<BINNACLE_OWNER>/binnacle-template`, by default
+  `thinkaxelthink/binnacle-template`; `BINNACLE_MARKETPLACE` names another)
+  and installs or updates
+  the `binnacle` plugin at user scope with the `claude` CLI (skipped, with
+  a message, when `claude` is not installed), then adds or refreshes the
+  brain's row (name, path, the company scope above) in the marked block of
+  `~/.claude/CLAUDE.md`, between `<!-- binnacle:begin -->` and
+  `<!-- binnacle:end -->`. Nothing outside the block changes, and re-runs
+  add no duplicate. A brain built before this step gets it from a re-run
+  of `setup.sh` (after `update.sh` brings the script in). To take the brain
+  off the list:
+  `~/binnacle-acme-engineering-jdoe/setup/common/register-vault.sh --remove ~/binnacle-acme-engineering-jdoe`;
 - checks `git`, `claude`, `gh` and Obsidian (warnings only).
 
 ## In Obsidian

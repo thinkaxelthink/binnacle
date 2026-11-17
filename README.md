@@ -1,198 +1,429 @@
-# binnacle-template
+# Binnacle
 
-Setup scripts, schema and conventions for **Binnacle**, a personal Obsidian
-vault that an LLM keeps as a wiki, after Andrej Karpathy's "LLM Wiki" gist.
-This repository is public and holds no content. The private vault repo,
-`binnacle`, is created from it, and lives at `~/binnacle` on each Mac.
+Binnacle is a template for a personal wiki that an LLM maintains for you.
+You drop sources (articles, talk notes, PDFs, survey results) into an inbox
+and write your own notes beside them. Claude Code reads each new source,
+writes and cross-links wiki pages about it, flags contradictions and orphan
+pages, and proposes every change as a pull request. You read and browse the
+result in Obsidian, synced between your devices with git.
 
-Scope depends on the profile. The personal vault holds thoughts and
-architectural learnings: no company data; no member, payment, contract or
-credential material; no company system connects to it. A work brain
-(below) holds one employer's company material, within limits: never
-customer or member personal data, payment data, minors' names, health or
-waiver records, or credentials, and the only company system that may feed
-it is the owner's own Microsoft Forms flow, through the survey scrub.
+It follows Andrej Karpathy's "LLM Wiki" pattern [TK: link to the gist].
+This repository holds the setup scripts, the checklists, and the schema the
+LLM follows (`CLAUDE.md`). It holds no content. Each vault you create from
+it is a separate private repository.
 
 ## How it works
 
-You capture sources and write notes on any device. On demand (or nightly,
-once scheduled), on shoyu, `bin/binnacle-run` has Claude Code read new
-sources into a cross-linked wiki, flag problems, and propose the change as
-a pull request that merges itself once the secret scan passes. Every run leaves an audit note.
+```
+capture devices ──► raw/inbox/ ──► bin/binnacle-run (wiki-writer machine)
+                                     │  move inbox to raw/sources/<run-id>/
+                                     │  Claude Code: ingest, link, lint
+                                     ▼
+                                pull request ──► gitleaks check ──► auto-merge to main
+                                     └─► audit/runs/<run-id>.md
+```
 
-## Zones
+1. On any device, you put sources in `raw/inbox/` and your own notes in
+   `soundings/`. Obsidian Git (on a Mac) or GitSync (on an iPhone) commits
+   and pushes them.
+2. On the one machine allowed to write the wiki, `bin/binnacle-run` starts a
+   run, by hand or nightly once you schedule it. It works in a temporary
+   git worktree, so your checkout and Obsidian stay on `main`. It branches
+   from `origin/main` and moves the inbox, unchanged, into
+   `raw/sources/<run-id>/`.
+3. Claude Code runs headless with `bin/binnacle-run.prompt.md`. Following
+   `CLAUDE.md`, it writes a page per source in `wiki/sources/`, creates or
+   updates the concept and entity pages the source touches, links them both
+   ways, updates `wiki/index.md`, runs a flag-only lint pass, and appends to
+   `wiki/log.md`.
+4. The script checks that Claude stayed inside its zones, writes the run's
+   audit note, pushes, opens a pull request and turns on auto-merge. GitHub
+   merges it once the gitleaks secret scan passes.
+
+An empty inbox means no run, no branch and no pull request. A failed run
+leaves its pull request open without auto-merge and records the reason in
+its audit note. Nothing retries, and the next run refuses to start until you
+merge or close that pull request.
+
+### Vault layout
 
 | Path | Holds | Written by |
 |---|---|---|
-| `raw/inbox/` | New sources: the capture point | Any device, by hand |
-| `raw/sources/<run-id>/` | Ingested sources, immutable | `bin/binnacle-run` (moved from the inbox, unchanged) |
-| `soundings/` | Hand-written notes; `soundings/notion/` is the Notion slip box, imported once | Any device, by hand (`soundings/notion/` via the import PR). The LLM reads, never edits |
-| `wiki/` | The wiki, with `index.md` and `log.md` | Claude Code on shoyu only, via PR |
-| `audit/` | One note per AI run, and `runs.base` (an Obsidian Bases table of all runs) | `bin/binnacle-run` on shoyu, via PR |
-| `CLAUDE.md` | The schema the LLM follows, including these zones | The human |
+| `raw/inbox/` | New sources: the capture point | You, on any device |
+| `raw/sources/<run-id>/` | Ingested sources, never changed again | `bin/binnacle-run`, moved from the inbox byte for byte |
+| `soundings/` | Your own hand-written notes | You, on any device. The LLM reads and links to them, never edits them |
+| `wiki/` | The wiki: `sources/`, `concepts/`, `entities/`, `syntheses/`, plus `index.md` and `log.md` | Claude Code on the wiki-writer machine, through a pull request |
+| `audit/` | One note per AI run, and `runs.base`, an Obsidian Bases table of all runs | `bin/binnacle-run` and Claude Code, through a pull request |
+| everything else | Scripts, schema, settings | You |
 
-## Protection
+`CLAUDE.md` is the full schema: page conventions, citation rules, the
+index and log formats, and what each operation may do.
 
-- **Secret scan, twice.** A pre-commit hook on both Macs runs gitleaks on
-  staged changes and rejects any staged file over 10 MB
-  (`.githooks/pre-commit`, config in `.gitleaks.toml`). The same gitleaks
-  scan runs as a GitHub Action on every push and pull request
-  (`.github/workflows/secret-scan.yml`, job `gitleaks`).
-- **Branch protection on `binnacle` main** requires the `gitleaks` check
-  before a PR merges. Device captures (`raw/`, `soundings/`) push straight to
-  `main`; AI changes always arrive through a PR with auto-merge.
-- **Zone guard.** `bin/binnacle-run` reverts anything Claude changes outside
-  `wiki/` and `audit/` and fails the run; `wiki/log.md` must only grow.
-- **Machine role.** Only a clone marked `git config binnacle.role
-  wiki-writer` (shoyu) can run AI writes; the work Mac is `capture`.
-- **Tokens.** One fine-grained token per device, scoped to the `binnacle`
-  repo only. Never a classic token. Never stored in the vault.
-- **`.obsidian/` is committed** except workspace layout, caches, Obsidian Git
-  settings and anything named like a token, secret, credential or password
-  (`.gitignore`).
+## Machines and profiles
 
-## AI runs
+A vault has two kinds of machine:
 
-```sh
-~/binnacle/bin/binnacle-run --dry-run   # what would happen
-~/binnacle/bin/binnacle-run             # do it
-```
+- **The wiki-writer.** The one machine where Claude Code writes the wiki.
+  Its clone is marked `git config binnacle.role wiki-writer`, and
+  `bin/binnacle-run` refuses to run anywhere else.
+- **Capture devices.** Any number of Macs and iPhones that read the whole
+  vault and write only to `raw/inbox/` and `soundings/`. A capture Mac's
+  clone is marked `binnacle.role capture`.
 
-Empty inbox: no run, no branch, no PR. Otherwise, in a temporary worktree:
-branch, move `raw/inbox/` into `raw/sources/<run-id>/`, ingest with Claude
-Code (prompt: `bin/binnacle-run.prompt.md`), flag-only lint
-(contradictions, orphans, stale claims, person pages due for review), append
-`wiki/log.md`, write `audit/runs/<run-id>.md`, push, open a PR, enable
-auto-merge. A failure
-leaves the PR open without auto-merge and the audit note says why. Nothing
-retries, and a new run refuses while a run PR is open. A run also skips
-(exit 0, no branch, no PR) while a Notion import is in progress or another
-run is still going.
+The template sets up two profiles:
 
-Nightly runs on shoyu are a LaunchAgent that `setup/shoyu/nightly.sh
-install` adds once the owner approves the time (default 03:30); nothing is
-scheduled until then (`setup/shoyu/CHECKLIST.md`, "Nightly runs").
+- **Personal vault** (default folder `~/binnacle`). Your own thinking and
+  architectural learnings. One wiki-writer, any number of capture devices,
+  and a private repository on your GitHub account.
+- **Work brain** (`setup/work-brain/`). A separate vault for your job, on
+  your work machine, which is its own wiki-writer. It may hold company
+  material within fixed limits (see "How Binnacle protects you"). It starts
+  with no remote and can later connect to a private repository in your
+  employer's GitHub organization.
 
-## Setup order
+Every vault is independent: its own repository, tokens, audit trail and
+wiki. Nothing is shared but this template.
 
-Every step is either an idempotent script or a checklist item; each
-checklist item names its device.
+## Requirements
 
-1. **Template** - this repository.
-2. **GitHub** - `setup/github/CHECKLIST.md`, then `setup/github/setup.sh`:
-   create private `binnacle` from this template, auto-merge, branch
-   protection.
-3. **shoyu** - `setup/shoyu/CHECKLIST.md` and `setup/shoyu/setup.sh`.
-4. **iPhone** - `setup/iphone/CHECKLIST.md` (GitSync free tier, Shortcuts:
-   pull when Obsidian opens, push when it closes).
-5. **Work Mac** - `setup/workmac/CHECKLIST.md` and `setup/workmac/setup.sh`
-   (read and capture only; `~/binnacle`, never inside the employer's
-   documents folder, which is set locally and never committed).
+- macOS on the wiki-writer and on capture Macs. The scripts use the macOS
+  keychain, launchd and the Obsidian app in `/Applications`.
+  [TK: is Linux or Windows support planned, or should the README say
+  macOS only?]
+- `git`, the GitHub CLI (`gh`) and `gitleaks`, from Homebrew or, for
+  gitleaks, the per-user install the checklists describe.
+- Claude Code, logged in, on the wiki-writer.
+- Obsidian 1.13 or later, with the Obsidian Git community plugin and the
+  Bases core plugin.
+- A GitHub plan with branch protection and auto-merge on private
+  repositories: GitHub Pro for a personal account, Team or Enterprise for a
+  work brain's organization. `setup/github/setup.sh` stops with a message
+  if the plan lacks them.
+- `python3` for survey intake (standard library only; 3.9 or later for
+  time zones).
+- On an iPhone: Obsidian and GitSync (free tier). There is no script for
+  the phone.
 
-`setup/common/install-hooks.sh` installs the hook, checks for gitleaks and
-records its path in `git config binnacle.gitleaks` (so GUI git clients such
-as Obsidian find it); the Mac scripts call it.
+## Setup
 
-## Building a second, separate brain
+Every step is either an idempotent script, safe to re-run, or a checklist
+item that names the device it happens on. The checklists are the source of
+truth; this section gives the order.
 
-The template carries no content, so a new brain is the same steps with
-different names:
+The scripts default to the template author's GitHub account. Set
+`BINNACLE_OWNER` to your own GitHub login when you run them, and use your
+login in the clone URLs the checklists show.
+[TK: keep this instruction, or change the default in `setup/common/lib.sh`
+before publishing?]
 
-1. Choose a repo name and a folder, e.g. `garden` at `~/garden`.
-2. GitHub: `BINNACLE_REPO=garden setup/github/setup.sh`
-   (`BINNACLE_OWNER` if it belongs to another account).
-3. Each Mac: clone it to the folder, then
-   `BINNACLE_REPO=garden BINNACLE_DIR=~/garden setup/<machine>/setup.sh`.
-4. iPhone: add the new repo in GitSync (check that your GitSync tier allows
-   another repository).
-5. Make new fine-grained tokens scoped to the new repo only. Never reuse a
-   token across brains. On shoyu, store its `gh` token in the keychain as
-   `garden-gh-token` (the setup script points the clone at
-   `<repo>-gh-token`).
+### Personal vault
 
-Each brain has its own repo, tokens, audit trail and wiki; nothing is
-shared but this template.
+1. **Your copy of the template.** Put this repository in your GitHub
+   account as `binnacle-template`. The GitHub script marks
+   `<owner>/binnacle-template` as a template and creates the vault from it
+   (`BINNACLE_TEMPLATE_REPO` names a different repository).
+   [TK: recommend fork, "Use this template", or clone and push?]
+2. **GitHub.** Follow `setup/github/CHECKLIST.md`, then:
 
-## A company brain on a work machine
+   ```sh
+   BINNACLE_OWNER=<you> setup/github/setup.sh --dry-run   # shows every call, changes nothing
+   BINNACLE_OWNER=<you> setup/github/setup.sh
+   ```
 
-A separate profile, `setup/work-brain/`, makes a work brain: a second
-vault for your job, beside `~/binnacle`, named
-`binnacle-<github org>-<github user>` (e.g.
-`binnacle-acme-engineering-jdoe`, at `~/binnacle-acme-engineering-jdoe`).
-The work machine runs the AI writer, on demand. It starts with no remote
-(local commits; the pre-commit hook and secret scan run locally, and
-`bin/binnacle-run` fast-forwards `main` instead of opening a PR) until
-`setup/work-brain/connect-remote.sh` connects a private repository in the
-organization. Same hook, scan and 10 MB cap; company material is allowed
-there, but never customer or member personal data, payment data, minors'
-names, health or waiver records, or credentials. Once the organization's
-base repository permission is "No permission" and no GitHub App is
-installed on all of its repositories, the brain is visible only to its user
-and the organization's owners (who can always read it). The setup refuses
-colliding folders and remotes and never touches `~/binnacle`; the personal
-vault and its setup are unchanged. Steps: `setup/work-brain/CHECKLIST.md`.
+   This creates the private repository `<you>/binnacle`, turns on squash
+   auto-merge and delete-branch-on-merge, and protects `main`: the
+   `gitleaks` check must pass before a pull request merges, and force
+   pushes and branch deletion are blocked. Admins are not enforced, so your
+   capture devices can still push straight to `main`.
+3. **Wiki-writer machine.** Follow `setup/shoyu/CHECKLIST.md`, then run
+   `~/binnacle/setup/shoyu/setup.sh`. It marks the clone as the
+   wiki-writer, sets the commit identity in the vault clone only, installs
+   the pre-commit hook, checks for `git`, `gh`, `claude` and Obsidian, and
+   sets up the Claude Code plugin and the vault's row in
+   `~/.claude/CLAUDE.md` (see "Claude Code integration").
+   The checklist also covers the device token, Obsidian Git settings, and
+   a first run.
+4. **Capture Mac** (optional). Follow `setup/workmac/CHECKLIST.md`, then
+   run `~/binnacle/setup/workmac/setup.sh`. It marks the clone as capture
+   only and sets up the Claude Code plugin and vault row as on the
+   wiki-writer. It requires `git config --global binnacle.workDocs <folder>`,
+   naming your employer's documents folder, and refuses to put the vault
+   inside it. [TK: what should someone set up a capture Mac that is not a
+   work computer do about `binnacle.workDocs`?]
+5. **iPhone** (optional). Follow `setup/iphone/CHECKLIST.md`: Obsidian,
+   GitSync, and two Shortcuts automations that sync when Obsidian opens and
+   when it closes.
 
-To pick up later template changes, run `setup/work-brain/update.sh
-<vault>` from an up-to-date template checkout. It finds the template
-commit the brain was built from (`git config binnacle.templateBase`, else
-its first commit message), stops and names any template file edited in the
-brain, then copies what changed upstream onto a `binnacle-update/<id>`
-branch with the company scope rules re-applied, never touching `wiki/`,
-`raw/`, `soundings/` or `audit/`. Local only it fast-forwards `main`;
-connected it opens a PR that you merge yourself. It refuses `~/binnacle`.
+Each device gets its own fine-grained GitHub token, scoped to the vault
+repository only, with an expiry. Never use a classic token. The table of
+permissions per device is in `setup/github/CHECKLIST.md`.
 
-## Survey intake
+Once a first run works, three optional additions:
 
-`bin/binnacle-forms-to-inbox` turns a survey's responses export
-(Microsoft Forms xlsx or csv, Google Forms or Sheets csv) into one
-scrubbed note per form per collection window in `raw/inbox/forms/`:
-respondent names, emails, ids and timestamps dropped, ratings summarised,
-free-text answers labelled R1..Rn in a random order, and nothing written
-at all when an answer matches an email, phone or card pattern or a local
-stop-list. It never commits. In a work brain, a Power Automate flow and
-`setup/forms/mover.sh` feed it from Microsoft Forms
-(`setup/forms/CHECKLIST.md`); in the personal vault,
-`bin/binnacle-forms-google-pull` feeds it from your own Google Forms
-through the Forms API, read-only, once each window has closed, and can run
-just before the nightly run (opt in; `setup/forms/GOOGLE-CHECKLIST.md`),
-or you run it on a Google Forms export by hand. `CLAUDE.md` says how
-such notes are ingested, including the optional `wiki/people/` zone for a
-manager's surveys about direct reports (off unless
-`git config binnacle.peopleZone true`).
+- **Nightly runs.** `~/binnacle/setup/shoyu/nightly.sh install` adds a
+  LaunchAgent that runs `bin/binnacle-nightly` at 03:30 local time
+  (`BINNACLE_NIGHTLY_HOUR` and `BINNACLE_NIGHTLY_MINUTE` change it).
+  `status` shows the last run and `uninstall` pauses it. Nothing is
+  scheduled until you install it. A LaunchAgent runs only while you are
+  logged in; the log is `~/Library/Logs/binnacle/nightly.log`. See
+  "Nightly runs" in `setup/shoyu/CHECKLIST.md`.
+- **A one-time Notion import.** `setup/notion/CHECKLIST.md` and
+  `bin/binnacle-import start|finish|status` bring a Notion workspace into
+  `soundings/notion/` on a branch, as a pull request you review and merge
+  yourself.
+- **Google Forms intake.** `setup/forms/GOOGLE-CHECKLIST.md`; see "Survey
+  intake" below.
 
-## Self-test
+### Work brain
+
+Follow `setup/work-brain/CHECKLIST.md`. Clone this template somewhere
+outside any vault, then:
 
 ```sh
-test/selftest.sh
+~/src/binnacle-template/setup/work-brain/setup.sh \
+  --org <github org> --user <github user> --git-email <work email>
 ```
 
-Syntax-checks every script, runs shellcheck when installed, and exercises
-the hook (size cap, gitleaks failure, fail closed) and `bin/binnacle-run`
-(empty inbox, dry run, import and overlap skips, a full run and a zone
-violation, with stubbed `claude` and `gh`), `bin/binnacle-import` (branch
-creation, the import marker, out-of-zone refusal, size-cap stop, no
-auto-merge), plus `bin/binnacle-nightly` and `setup/shoyu/nightly.sh`
-(stubbed `binnacle-run` and `launchctl`), and the work-brain profile
-(name slugging, collision refusals, local-only setup and runs, connecting
-a remote, updating from a newer template (local and connected), the
-base-permission and app-installation checks with a stubbed
-`gh`), the survey converter and mover (csv and xlsx exports of both
-platforms, the scrub, refusals, ratings, the R1..Rn shuffle, re-runs), the
-Google Forms pull (credential-file refusals, windows, idempotent re-runs,
-the handoff to the converter, nothing written on failure, consent, with a
-stubbed Google and no network) and the people-zone guard, against
-throwaway repositories built from the template's own files only, so it
-also runs inside a vault with content. In a work brain it skips the
-work-brain setup, run and connect checks, since its `CLAUDE.md` already
-carries the work rules. CI runs it on changes to scripts
-(`.github/workflows/selftest.yml`).
+The vault is named `binnacle-<org>-<user>` and lives at
+`~/binnacle-<org>-<user>` (`--dir` picks another folder). The script
+refuses a folder that collides with another vault and never touches
+`~/binnacle`. It writes the work brain's content limits into the vault's
+`CLAUDE.md` and run prompt, and sets up the Claude Code plugin and the
+brain's row in `~/.claude/CLAUDE.md`, with the work scope.
 
-## Roadmap
+With no remote, runs commit locally through the pre-commit scan and
+fast-forward `main`. When you decide to connect a remote, the checklist
+walks through the organization settings to check first, then
+`setup/work-brain/connect-remote.sh` pushes to an empty private repository
+of the same name in the organization. From then on, runs open pull requests
+as in the personal vault. Microsoft Forms intake for a work brain is in
+`setup/forms/CHECKLIST.md`.
 
-- **Version 2: Notion import.** Available: `setup/notion/CHECKLIST.md`
-  and `bin/binnacle-import` bring the Notion slip box into
-  `soundings/notion/` once, through a reviewed PR (read-only to the LLM
-  like the rest of `soundings/`), then Notion is frozen. The wiki ingests
-  those notes later, in batches.
-- **Version 2: nightly runs.** Built: `setup/shoyu/nightly.sh` schedules
-  `bin/binnacle-run` nightly on shoyu. Off until the owner installs it.
+### Another personal vault
+
+The template carries no content, so a second vault is the same steps with
+different names, for example `garden` at `~/garden`:
+
+1. GitHub: `BINNACLE_OWNER=<you> BINNACLE_REPO=garden setup/github/setup.sh`.
+2. On each Mac, clone the new repository to its folder, then
+   `BINNACLE_OWNER=<you> BINNACLE_REPO=garden BINNACLE_DIR=~/garden setup/<machine>/setup.sh`.
+3. On the iPhone, add the repository in GitSync (check that your GitSync
+   tier allows another one).
+4. Make new tokens scoped to the new repository. Never reuse a token across
+   vaults. On the wiki-writer, store its token in the keychain as
+   `garden-gh-token`; the setup script points the clone at
+   `<repo>-gh-token`.
+
+## Day to day
+
+### Capture
+
+Write sources into `raw/inbox/` and your own notes into `soundings/`. Read
+everything else, and leave `wiki/` to the runs. Let Obsidian Git or GitSync
+push your captures: a run reads the inbox from `origin/main`, so a capture
+not yet pushed waits for the next run.
+
+### Run
+
+On the wiki-writer:
+
+```sh
+~/binnacle/bin/binnacle-run --dry-run   # what would happen; no fetch, no Claude, no GitHub calls
+~/binnacle/bin/binnacle-run
+```
+
+Expect a pull request URL with auto-merge on. A run exits 0 without doing
+anything when the inbox is empty, when a Notion import is in progress, or
+when another run holds the lock.
+
+### Read and review
+
+- Start at `wiki/index.md`, the catalog of every page. `wiki/log.md` is
+  the history of what happened to the wiki:
+  `grep '^## \[' wiki/log.md | tail -5` shows the last five operations.
+- Open `audit/runs.base` in Obsidian for a table of every run: status,
+  sources, pages changed, lint flags, pull request, and whether it merged.
+  `audit/README.md` explains each field.
+- Lint only flags; it never fixes. Each run's audit note lists
+  `contradiction`, `orphan`, `stale` and `review` flags for you to act on.
+
+### Ask questions
+
+Open Claude Code in the vault on the wiki-writer and ask. Following
+`CLAUDE.md`, it reads `wiki/index.md` first, follows links, and answers
+with citations to wiki pages and raw sources. Queries change nothing. To
+keep an answer, ask Claude to file it: it becomes a page in
+`wiki/syntheses/` on a `binnacle-query/<date>-<slug>` branch, through a
+pull request with auto-merge.
+
+### Survey intake
+
+`bin/binnacle-forms-to-inbox` turns a survey's responses export (Microsoft
+Forms `.xlsx` or `.csv`, Google Forms or Sheets `.csv`) into one scrubbed
+note per form per collection window in `raw/inbox/forms/`. It drops
+respondent names, emails, ids and timestamps, summarises ratings as a
+distribution and a median, and labels free-text answers in a random order.
+It writes nothing at all when an answer matches an email, phone or card
+pattern or a term on your local stop-list. It never commits; you read the
+note, then commit it.
+
+- Personal vault: `bin/binnacle-forms-google-pull` reads your own Google
+  Forms through the Forms API, read-only, once each window has closed, and
+  can run before each nightly run (`setup/forms/GOOGLE-CHECKLIST.md`). Or
+  run the converter by hand on a downloaded export.
+- Work brain: a Power Automate flow and `setup/forms/mover.sh` feed it from
+  Microsoft Forms (`setup/forms/CHECKLIST.md`).
+
+A manager's surveys about their own direct reports can get one page per
+person in `wiki/people/`. That zone is off unless you run
+`git config binnacle.peopleZone true` in the vault; each person page comes
+up for a keep-or-delete review once a year.
+
+## Claude Code integration
+
+This repository is also a Claude Code plugin marketplace,
+`binnacle-template` (`.claude-plugin/marketplace.json`), with one plugin,
+`binnacle` (`plugins/binnacle/`). Its skill works with the vaults on the
+machine it runs on:
+
+- **Look up.** It reads the vault's `CLAUDE.md` and `wiki/index.md` first,
+  follows links, and answers with citations. Lookups are read-only.
+- **Capture.** It writes one new file to `raw/inbox/`, then commits and
+  pushes only that file (commits only, in a work brain with no remote),
+  leaving any other uncommitted change alone.
+- **Run.** It starts `bin/binnacle-run` only on a clone marked
+  `binnacle.role wiki-writer`, always offering `--dry-run` first and
+  running for real only once you confirm.
+
+Every vault setup script (`setup/shoyu/setup.sh`,
+`setup/workmac/setup.sh`, `setup/work-brain/setup.sh`) calls
+`setup/common/register-vault.sh`, which:
+
+1. registers the marketplace `<BINNACLE_OWNER>/binnacle-template`
+   (`BINNACLE_MARKETPLACE` names another) and installs or updates the
+   `binnacle` plugin at user scope with the `claude` CLI. Without `claude`
+   it skips this step with a message;
+2. adds or refreshes the vault's row in a marked block of
+   `~/.claude/CLAUDE.md`, creating the file or block when absent, so every
+   Claude session on the machine knows which vaults exist, where they
+   live, and the rules for using them. The skill finds vaults only through
+   this block. Each row reads:
+
+   ```
+   <!-- binnacle:begin -->
+   ...
+   - **binnacle** at `/Users/you/binnacle`: personal: the owner's own thinking and architectural learnings; never company material
+   ...
+   <!-- binnacle:end -->
+   ```
+
+   Rows are keyed by the vault's path. Re-running setup refreshes the row
+   and the block's text, never adds a duplicate row or marketplace, and
+   never changes anything outside the block.
+
+To take a retired vault off the list (the plugin stays installed):
+
+```sh
+~/binnacle/setup/common/register-vault.sh --remove ~/binnacle
+```
+
+To install the plugin by hand on a machine with no vault setup, in Claude
+Code:
+
+```
+/plugin install binnacle --marketplace <owner>/binnacle-template
+```
+
+## How Binnacle protects you
+
+- **Zones.** The LLM writes only `wiki/` and `audit/`. After Claude Code
+  finishes, `bin/binnacle-run` reverts anything it changed elsewhere and
+  fails the run. `wiki/log.md` may only grow, and `wiki/people/` may change
+  only while the people zone is on.
+- **Secret scan, twice.** On every Mac, a pre-commit hook runs gitleaks on
+  the staged changes and rejects any staged file over 10 MB. If it cannot
+  find gitleaks, it blocks the commit rather than skip the scan. The same
+  gitleaks scan runs as a GitHub Action on every push and pull request, and
+  `main` requires it before any pull request merges. An iPhone cannot run
+  the hook, so the Action is the only check on its commits.
+- **AI changes go through pull requests.** Your own captures push straight
+  to `main`; the scan runs on those pushes and reports, but cannot block
+  them. AI changes always arrive through a pull request that merges only on
+  a green scan.
+- **One writer.** Only the clone marked `wiki-writer` can run AI writes.
+- **Tokens.** One fine-grained token per device, scoped to one repository,
+  with an expiry, kept in the macOS keychain or a mode-600 file outside the
+  vault. No token goes into the vault, a script or `.obsidian/`. The
+  nightly log masks anything shaped like a GitHub, Anthropic or Google
+  token.
+- **What stays local.** `.obsidian/` is committed so devices share plugins
+  and settings, except window layout, caches, Obsidian Git and Importer
+  settings, and any file named like a token, secret, credential or
+  password. Survey settings and the stop-list live in `.binnacle/`, which
+  git ignores.
+- **What a vault may hold.** The personal vault holds no company data, no
+  member or customer data, no payment or contract material and no
+  credentials, and no company system connects to it. A work brain may hold
+  company material, but never customer or member personal data, payment
+  data, minors' names, health or waiver records, or credentials. Claude
+  Code skips any source that holds a secret or out-of-scope material, and
+  says so in the run's audit note without repeating it. Your employer's
+  own policies win over these lists.
+- **Who can see a work brain.** Until you connect a remote it exists only
+  on your machine. Connected, the organization's owners can always read
+  it. Others can read it unless the organization's base repository
+  permission is "No permission" and no GitHub App is installed on all of
+  its repositories; `connect-remote.sh` checks both and warns with the fix.
+
+## Updating
+
+- **Re-running setup.** Every setup script is idempotent; re-run one after
+  changing its environment variables, or to repair a machine. A re-run
+  also updates the `binnacle` plugin and refreshes the vault's row in
+  `~/.claude/CLAUDE.md`. Between re-runs,
+  `claude plugin marketplace update binnacle-template` and
+  `claude plugin update binnacle@binnacle-template` update the plugin.
+- **A work brain.** From an up-to-date template checkout outside the vault:
+
+  ```sh
+  git -C ~/src/binnacle-template pull
+  ~/src/binnacle-template/setup/work-brain/update.sh ~/binnacle-<org>-<user>
+  ```
+
+  It finds the template commit the brain was built from, stops and names
+  any template file you edited in the brain, then copies what changed
+  upstream onto a `binnacle-update/<id>` branch with the work content rules
+  re-applied. It never touches `wiki/`, `raw/`, `soundings/` or `audit/`.
+  Local only, it fast-forwards `main`; connected, it opens a pull request,
+  without auto-merge, for you to review and merge.
+- **A personal vault.** [TK: there is no documented update path.
+  `update.sh` refuses `~/binnacle`. How should a personal vault pick up
+  template changes?]
+
+## Contributing
+
+`CLAUDE.md` in this repository describes the vault the template produces,
+not this repository. Changes here are ordinary reviewed code changes.
+
+- `bin/` holds the run, import, nightly and survey scripts;
+  `setup/<profile>/` holds each profile's script and checklist; the
+  pre-commit hook is in `.githooks/`; CI is in `.github/workflows/`; the
+  Claude Code marketplace is `.claude-plugin/marketplace.json` and the
+  plugin is in `plugins/binnacle/`. Bump the plugin's `version` in
+  `plugins/binnacle/.claude-plugin/plugin.json` when its skill changes,
+  and check both with `claude plugin validate <dir> --strict` (the
+  self-test does when `claude` is installed).
+- Run `test/selftest.sh` before opening a pull request. It builds
+  throwaway repositories from the template's own files, stubs `claude`,
+  `gh`, `launchctl` and Google, makes no network calls, and runs
+  shellcheck when it is installed. CI runs it whenever scripts, the hook,
+  tests or the gitleaks config change, and runs the secret scan on every
+  push.
+- When a change alters what a person does, update the matching
+  `CHECKLIST.md`; each item names the device it happens on. When it alters
+  what the LLM does, update `CLAUDE.md` and `bin/binnacle-run.prompt.md`.
+- The CI job named `gitleaks` is the required status check on every vault's
+  `main`. Renaming it means updating `BINNACLE_SCAN_CHECK` in
+  `setup/github/setup.sh` and the branch protection rule.
+
+[TK: license, and whether outside pull requests are welcome]

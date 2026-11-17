@@ -53,7 +53,23 @@ name, else `BINNACLE_OWNER`; `user.email` from `BINNACLE_GIT_EMAIL`, else the
 existing local email, else `<BINNACLE_OWNER>@users.noreply.github.com`) so
 Obsidian Git's commits never carry this Mac's hostname, and installs the
 gitleaks + 10 MB pre-commit hook, recording the gitleaks path in
-`git config binnacle.gitleaks`. You do not set `user.name` or `user.email`
+`git config binnacle.gitleaks`.
+
+It also tells Claude Code on this Mac about the vault
+(`setup/common/register-vault.sh`): it registers this template's plugin
+marketplace (`<BINNACLE_OWNER>/binnacle-template`, by default
+`thinkaxelthink/binnacle-template`; `BINNACLE_MARKETPLACE` names another)
+and installs or updates
+the `binnacle` plugin at user scope with the `claude` CLI (skipped, with a
+message, when `claude` is not installed), then adds or refreshes the
+vault's row (name, path, scope) in the marked block of
+`~/.claude/CLAUDE.md`, between `<!-- binnacle:begin -->` and
+`<!-- binnacle:end -->`, so every Claude session here knows the vault
+exists and how to use it. Nothing outside the block changes, and re-runs
+add no duplicate row or marketplace. To take a vault off the list:
+`~/binnacle/setup/common/register-vault.sh --remove ~/binnacle`.
+
+You do not set `user.name` or `user.email`
 yourself; to use a different identity, re-run the script with the env vars:
 
 ```sh

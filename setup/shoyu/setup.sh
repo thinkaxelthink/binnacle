@@ -57,6 +57,10 @@ for tool in git gh claude; do
   fi
 done
 
+bn_log "Claude Code: binnacle plugin and vault list"
+"$here/../common/register-vault.sh" "$BINNACLE_REPO" "$BINNACLE_DIR" "$BN_PERSONAL_SCOPE" \
+  || problem "the binnacle Claude Code plugin step failed (see above)"
+
 bn_log "Obsidian >= $BINNACLE_MIN_OBSIDIAN"
 ver=$(bn_obsidian_version)
 if [ -z "$ver" ]; then

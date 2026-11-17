@@ -24,7 +24,7 @@ check() { # description, command...
 }
 
 scripts=(.githooks/pre-commit bin/binnacle-run bin/binnacle-import bin/binnacle-nightly setup/common/lib.sh
-  setup/common/install-hooks.sh setup/github/setup.sh setup/shoyu/setup.sh setup/shoyu/nightly.sh
+  setup/common/install-hooks.sh setup/common/register-vault.sh setup/github/setup.sh setup/shoyu/setup.sh setup/shoyu/nightly.sh
   setup/workmac/setup.sh setup/work-brain/lib.sh setup/work-brain/setup.sh setup/work-brain/connect-remote.sh
   setup/work-brain/update.sh bin/binnacle-forms-to-inbox bin/binnacle-forms-google-pull setup/forms/mover.sh test/selftest.sh)
 
@@ -51,8 +51,8 @@ git config --global advice.detachedHead false
 mkdir -p "$T/seed" "$T/stubs"
 # Seed only the files the template itself ships, so a run inside a vault
 # never pulls its notes, docs or tracked .obsidian/ settings into fixtures.
-template_paths=(.githooks .github .gitignore .gitleaks.toml .shellcheckrc CLAUDE.md README.md
-  audit/README.md audit/runs.base audit/runs/.gitkeep bin raw/inbox/.gitkeep setup
+template_paths=(.claude-plugin .githooks .github .gitignore .gitleaks.toml .shellcheckrc CLAUDE.md README.md
+  audit/README.md audit/runs.base audit/runs/.gitkeep bin plugins raw/inbox/.gitkeep setup
   soundings/.gitkeep test)
 (cd "$repo" && git ls-files -z -co --exclude-standard -- "${template_paths[@]}" | tar --null -T - -cf -) \
   | tar -xf - -C "$T/seed"
@@ -126,7 +126,12 @@ EOF
 
 cat >"$T/stubs/claude" <<'EOF'
 #!/bin/sh
-# Stub Claude Code. $2 is the rendered prompt.
+# Stub Claude Code. `claude plugin ...` (setup) is logged and exits
+# STUB_CLAUDE_PLUGIN_EXIT; otherwise $2 is the rendered prompt.
+if [ "$1" = plugin ]; then
+  echo "claude $*" >>"${STUB_CLAUDE_PLUGIN_LOG:-/dev/null}"
+  exit "${STUB_CLAUDE_PLUGIN_EXIT:-0}"
+fi
 prompt=$2
 echo "$prompt" | grep -q '{{' && { echo "unrendered placeholder" >&2; exit 9; }
 echo "$prompt" | grep -q 'raw/sources/' || { echo "no sources in prompt" >&2; exit 9; }
@@ -546,6 +551,103 @@ check "install-hooks: updates the recorded path when gitleaks moves" bash -c \
   _ "$repo/setup/common/install-hooks.sh" "$V" "$stubs_phys"
 check "github --dry-run: changes nothing, names the check" bash -c \
   '"$1" --dry-run | grep -q "\"context\": \"gitleaks\""' _ "$repo/setup/github/setup.sh"
+
+# --- Claude Code: setup/common/register-vault.sh and the vault list -------------------
+# A throwaway HOME; the stub claude logs the plugin commands.
+CH=$T/chome
+CMD=$CH/.claude/CLAUDE.md
+mkdir -p "$CH/v1" "$CH/v2"
+v1=$(bash -c '. "$1"; bn_physical_path "$2"' _ "$lib" "$CH/v1")
+v2=$(bash -c '. "$1"; bn_physical_path "$2"' _ "$lib" "$CH/v2")
+reg_sh=$repo/setup/common/register-vault.sh
+reg() { # args... -> register-vault.sh with HOME=$CH, output in $T/reg.out
+  env HOME="$CH" STUB_CLAUDE_PLUGIN_LOG="$T/plugin.log" "$reg_sh" "$@" >"$T/reg.out" 2>&1
+}
+rows() { grep -c '^- \*\*.*\*\* at `' "$CMD"; }
+row_for() { grep -c -F "at \`$1\`:" "$CMD"; }
+: >"$T/plugin.log"
+check "vault list: creates ~/.claude/CLAUDE.md with the block" reg one "$CH/v1" "personal: first"
+check "vault list: one row, with name, path and scope" grep -qxF -- "- **one** at \`$v1\`: personal: first" "$CMD"
+check "vault list: block markers present once" bash -c \
+  'test "$(grep -cx "<!-- binnacle:begin -->" "$1")" = 1 && test "$(grep -cx "<!-- binnacle:end -->" "$1")" = 1' _ "$CMD"
+check "vault list: block names the binnacle skill" grep -q 'Use the `binnacle` skill' "$CMD"
+check "plugin: marketplace added, refreshed, plugin installed and updated at user scope" diff -u - "$T/plugin.log" <<PLUG
+claude plugin marketplace add thinkaxelthink/binnacle-template --scope user
+claude plugin marketplace update binnacle-template
+claude plugin install binnacle@binnacle-template --scope user
+claude plugin update binnacle@binnacle-template --scope user
+PLUG
+cp "$CMD" "$T/cmd.before"
+: >"$T/plugin.log"
+check "plugin: BINNACLE_MARKETPLACE names the source" env BINNACLE_MARKETPLACE=someone/fork HOME="$CH" \
+  STUB_CLAUDE_PLUGIN_LOG="$T/plugin.log" "$reg_sh" one "$CH/v1" "personal: first"
+check "plugin: marketplace added from that source" grep -qx "claude plugin marketplace add someone/fork --scope user" "$T/plugin.log"
+check "vault list: re-run on a new file changes nothing" cmp -s "$T/cmd.before" "$CMD"
+# Surround the block with the owner's own content, which must never change.
+{ printf '# My notes\n\nKeep this line.\n\n'; cat "$CMD"; printf '\n## Later\n\nAnd this one.\n'; } >"$T/cmd.tmp" && mv "$T/cmd.tmp" "$CMD"
+outside() { awk '/^<!-- binnacle:begin -->$/ { s = 1 } !s { print } /^<!-- binnacle:end -->$/ { s = 0 }' "$CMD"; }
+outside_before=$(outside)
+check "vault list: adds a second vault" reg two "$CH/v2/" "personal: second"
+check "vault list: two rows" test "$(rows)" = 2
+check "vault list: second row keyed by the resolved path" test "$(row_for "$v2")" = 1
+check "vault list: refreshes a vault's row in place" reg one-renamed "$CH/v1" "personal: refreshed"
+check "vault list: still two rows after the refresh" test "$(rows)" = 2
+check "vault list: refreshed row replaces the old one" bash -c \
+  'grep -qxF -- "- **one-renamed** at \`$2\`: personal: refreshed" "$1" && ! grep -q "personal: first" "$1"' _ "$CMD" "$v1"
+check "vault list: first row keeps its place" bash -c \
+  'grep "^- \*\*" "$1" | head -n 1 | grep -qF "$2"' _ "$CMD" "$v1"
+cp "$CMD" "$T/cmd.before"
+check "vault list: re-run succeeds" reg two "$CH/v2" "personal: second"
+check "vault list: re-run changes nothing" cmp -s "$T/cmd.before" "$CMD"
+check "vault list: content outside the block preserved" test "$(outside)" = "$outside_before"
+# An older block's fixed text is rewritten; its rows are kept.
+awk '{ sub(/Use the `binnacle` skill for lookups, captures and runs\./, "An outdated rule."); print }' "$CMD" >"$T/cmd.tmp" && mv "$T/cmd.tmp" "$CMD"
+check "vault list: re-run over an outdated block succeeds" reg two "$CH/v2" "personal: second"
+check "vault list: outdated block text rewritten" bash -c '! grep -q "An outdated rule" "$1" && grep -q "Use the \`binnacle\` skill" "$1"' _ "$CMD"
+check "vault list: rows kept through the rewrite" test "$(rows)" = 2
+cp "$CMD" "$T/cmd.before"
+printf '<!-- binnacle:begin -->\n' >>"$CMD"
+cp "$CMD" "$T/cmd.malformed"
+check "vault list: refuses a malformed block" expect_fail reg three "$CH/v2" "personal: third"
+check "vault list: malformed block left as it was" cmp -s "$T/cmd.malformed" "$CMD"
+cp "$T/cmd.before" "$CMD"
+: >"$T/plugin.log"
+check "vault list: --remove drops one row" reg --remove "$CH/v1"
+check "vault list: one row left, the other vault's" bash -c 'test "$(grep -c "^- \*\*" "$1")" = 1 && grep -qF "$2" "$1"' _ "$CMD" "$v2"
+check "vault list: --remove runs no claude command" test ! -s "$T/plugin.log"
+check "vault list: --remove of the last row" reg --remove "$CH/v2"
+check "vault list: removing the last row drops the block" bash -c '! grep -q "binnacle:" "$1"' _ "$CMD"
+check "vault list: content outside the block survives removal" test "$(cat "$CMD")" = "$outside_before"
+mkdir -p "$T/emptyhome2"
+check "vault list: --remove without a list is a no-op" env HOME="$T/emptyhome2" "$reg_sh" --remove "$T/emptyhome2/v1"
+check "vault list: --remove without a list creates nothing" test ! -e "$T/emptyhome2/.claude"
+mkdir -p "$CH/dotfiles"
+mv "$CMD" "$CH/dotfiles/CLAUDE.md"
+ln -s "$CH/dotfiles/CLAUDE.md" "$CMD"
+check "vault list: writes through a symlinked CLAUDE.md" reg one "$CH/v1" "personal: first"
+check "vault list: symlink kept, target updated" bash -c 'test -L "$1" && grep -q "personal: first" "$2"' _ "$CMD" "$CH/dotfiles/CLAUDE.md"
+check "vault list: refuses a scope over several lines" expect_fail reg one "$CH/v1" "$(printf 'a\nb')"
+check "vault list: refuses a missing folder" expect_fail reg one "$CH/nowhere" "personal: x"
+check "plugin: without claude, skips with a message and still lists the vault" bash -c \
+  'BINNACLE_CLAUDE="$1/missing" HOME="$2" "$3" none "$2/v2" "personal: no claude" >"$4" 2>&1 && grep -q "claude not found" "$4" && grep -qF "personal: no claude" "$2/.claude/CLAUDE.md"' \
+  _ "$T" "$CH" "$reg_sh" "$T/reg.out"
+check "plugin: a failing claude step fails the script" expect_fail env STUB_CLAUDE_PLUGIN_EXIT=1 HOME="$CH" \
+  "$reg_sh" one "$CH/v1" "personal: claude fails"
+check "plugin: the vault is listed even when the plugin step fails" grep -qF "personal: claude fails" "$CMD"
+
+# The setup scripts list their vault, once, however often they run.
+vp=$(bash -c '. "$1"; bn_physical_path "$2"' _ "$lib" "$V")
+check "shoyu and workmac: vault listed once in ~/.claude/CLAUDE.md" test "$(grep -cF "at \`$vp\`:" "$T/home/.claude/CLAUDE.md")" = 1
+check "shoyu and workmac: personal scope, named after the repo" \
+  grep -qxF -- "- **remote** at \`$vp\`: personal: the owner's own thinking and architectural learnings; never company material" "$T/home/.claude/CLAUDE.md"
+check "shoyu: installs the plugin" bash -c ': >"$1" && env STUB_CLAUDE_PLUGIN_LOG="$1" HOME="$2" BINNACLE_DIR="$3" BINNACLE_OWNER="$4" BINNACLE_REPO=remote "$5" >/dev/null 2>&1; grep -q "plugin install binnacle@binnacle-template --scope user" "$1"' \
+  _ "$T/plugin.log" "$T/home" "$V" "${T##*/}" "$repo/setup/shoyu/setup.sh"
+if command -v claude >/dev/null 2>&1; then
+  check "plugin manifests: marketplace validates (--strict)" env HOME="$T/vhome" claude plugin validate "$repo" --strict
+  check "plugin manifests: plugin validates (--strict)" env HOME="$T/vhome" claude plugin validate "$repo/plugins/binnacle" --strict
+else
+  printf 'skip   claude plugin validate (claude not installed)\n'
+fi
 
 # --- bin/binnacle-nightly -----------------------------------------------------------------
 # The wrapper beside a stub binnacle-run, started the way launchd starts it:
@@ -1417,6 +1519,12 @@ if [ "$template_rules" = yes ]; then
   check "work-brain setup: re-run is safe" wb_setup --org acme-engineering --user jdoe
   check "work-brain setup: re-run adds no commit" test "$(git -C "$B" rev-list --count main)" = 1
   check "work-brain setup: re-run from the vault's own copy" env HOME="$WH" "$B/setup/work-brain/setup.sh" --org acme-engineering --user jdoe
+  bp=$(bash -c '. "$1"; bn_physical_path "$2"' _ "$lib" "$B")
+  check "work-brain setup: brain listed once in ~/.claude/CLAUDE.md after re-runs" \
+    test "$(grep -cF "at \`$bp\`:" "$WH/.claude/CLAUDE.md")" = 1
+  check "work-brain setup: listed with its name and the work scope" grep -qxF -- \
+    "- **binnacle-acme-engineering-jdoe** at \`$bp\`: work: company brain for the acme-engineering organization; never customer or member personal data, payment data, minors' names, health or waiver records, or credentials" \
+    "$WH/.claude/CLAUDE.md"
 
   # Collisions: nothing but a new folder or this brain's own vault.
   mkdir -p "$WH/foreign"

@@ -24,6 +24,12 @@ wb_name() {
   printf 'binnacle-%s-%s\n' "$org" "$user"
 }
 
+# wb_scope ORG: print the scope line of a work brain in the vault list
+# that setup/common/register-vault.sh keeps in ~/.claude/CLAUDE.md.
+wb_scope() {
+  printf "work: company brain for the %s organization; never customer or member personal data, payment data, minors' names, health or waiver records, or credentials\n" "$1"
+}
+
 # wb_refuse_personal DIR: die when DIR is the personal vault or inside it,
 # after resolving symlinks.
 wb_refuse_personal() {
