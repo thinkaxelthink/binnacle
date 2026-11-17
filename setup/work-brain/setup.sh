@@ -23,7 +23,10 @@
 # vault, a vault whose origin points elsewhere, and ~/binnacle (or anything
 # that resolves into it), which it never touches.
 # Env: BINNACLE_GH (gh), BINNACLE_GITLEAKS, BINNACLE_GIT_NAME and
-#      BINNACLE_GIT_EMAIL (same as the flags; the flags win).
+#      BINNACLE_GIT_EMAIL (same as the flags; the flags win),
+#      BINNACLE_OWNER (your GitHub user; the plugin comes from
+#      <BINNACLE_OWNER>/binnacle-template), BINNACLE_MARKETPLACE (overrides
+#      it; with neither set, the plugin step warns and setup continues).
 # Human-only steps are in setup/work-brain/CHECKLIST.md.
 set -eu
 
