@@ -30,8 +30,9 @@ contract material, no credentials.
       ```sh
       git config --global binnacle.workDocs "$HOME/Documents/<employer folder>"
       ```
-- [ ] **[work Mac, human]** Create the work Mac fine-grained token (binnacle
-      only; Contents read/write; see the GitHub checklist).
+- [ ] **[work Mac, human]** Create the work Mac fine-grained token (the vault
+      repository, `binnacle-<user>` or your `BINNACLE_REPO`, only;
+      Contents read/write; see the GitHub checklist).
 - [ ] **[work Mac, human]** Clone; when git asks, the username is your
       GitHub login and the password is the token (kept in the keychain):
 

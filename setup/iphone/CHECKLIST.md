@@ -15,8 +15,9 @@ or token into a note, and keep attachments under 10 MB.
       standalone iOS app, not an Obsidian community plugin. Obsidian's
       plugin list has look-alikes, "GitSync Portal" (Kai Liu) and
       "GitSync.md Connect" (codybontecou); do not install them.
-- [ ] **[iPhone, human]** Create the iPhone fine-grained token (binnacle
-      only; Contents read/write; see the GitHub checklist).
+- [ ] **[iPhone, human]** Create the iPhone fine-grained token (the vault
+      repository, `binnacle-<user>` or your `BINNACLE_REPO`, only;
+      Contents read/write; see the GitHub checklist).
 
 ## Clone
 

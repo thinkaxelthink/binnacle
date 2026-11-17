@@ -62,9 +62,9 @@ token: it reaches every repository you own.
 
 | Device | Repository access | Permissions | Stored in |
 |---|---|---|---|
-| shoyu | Only select repositories: `binnacle-<user>` | Contents: read and write; Pull requests: read and write | macOS keychain (git credential helper, and item `binnacle-<user>-gh-token` for `gh`, or a mode-600 file when the keychain is unreachable: setup/shoyu/CHECKLIST.md) |
-| work Mac | Only select repositories: `binnacle-<user>` | Contents: read and write | macOS keychain (git credential helper) |
-| iPhone | Only select repositories: `binnacle-<user>` | Contents: read and write | GitSync |
+| shoyu | Only select repositories: your vault, `binnacle-<user>` or your `BINNACLE_REPO` | Contents: read and write; Pull requests: read and write | macOS keychain (git credential helper, and item `<BINNACLE_REPO>-gh-token` (`binnacle-<user>-gh-token` by default) for `gh`, or a mode-600 file when the keychain is unreachable: setup/shoyu/CHECKLIST.md) |
+| work Mac | Only select repositories: your vault, `binnacle-<user>` or your `BINNACLE_REPO` | Contents: read and write | macOS keychain (git credential helper) |
+| iPhone | Only select repositories: your vault, `binnacle-<user>` or your `BINNACLE_REPO` | Contents: read and write | GitSync |
 
 Metadata: read-only is added automatically. Give each token an expiry and
 a name that says which device holds it, so one device can be revoked alone.

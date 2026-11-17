@@ -18,12 +18,15 @@ shoyu is the only machine where Claude Code writes the wiki. Do
       follow the login prompt).
 - [ ] **[shoyu, human]** Install or update Obsidian to 1.13 or later
       (obsidian.md, or Settings > General > Check for updates).
-- [ ] **[shoyu, human]** Create the shoyu fine-grained token (binnacle only;
-      Contents and Pull requests read/write; see the GitHub checklist).
+- [ ] **[shoyu, human]** Create the shoyu fine-grained token (the vault repository,
+      `binnacle-<user>` or your `BINNACLE_REPO`, only; Contents and Pull
+      requests read/write; see the GitHub checklist).
 - [ ] **[shoyu, human]** Store it for `gh`, which `bin/binnacle-run` uses to
       open PRs and enable auto-merge:
-      `security add-generic-password -U -s binnacle-<user>-gh-token -a "$USER" -w`
-      (prompts for the token; nothing lands in shell history).
+      `security add-generic-password -U -s <BINNACLE_REPO>-gh-token -a "$USER" -w`
+      (`binnacle-<user>-gh-token` by default, e.g. `binnacle-vault-gh-token`
+      with `BINNACLE_REPO=binnacle-vault`; prompts for the token; nothing
+      lands in shell history).
 
       If the keychain is unreachable from the session that runs
       `bin/binnacle-run` (e.g. over SSH, where `security` fails with "User
@@ -126,7 +129,7 @@ Nothing is scheduled until you install it; `setup.sh` never does.
       else `binnacle.ghTokenFile`. If your login keychain locks itself (on
       sleep or after a timeout), a 03:30 run may wait on an unlock prompt:
       in that case keep the token only in the file and delete the keychain
-      item (`security delete-generic-password -s binnacle-<user>-gh-token`).
+      item (`security delete-generic-password -s <BINNACLE_REPO>-gh-token`).
 - [ ] **[shoyu, human]** Install, on shoyu while logged in to its desktop:
 
       ```sh
