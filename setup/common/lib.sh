@@ -1,10 +1,14 @@
 # shellcheck shell=bash
 # Shared helpers for the Binnacle setup scripts. Source it; do not run it.
 
-# BINNACLE_OWNER, your GitHub user, has no default: bn_require_owner.
+# BINNACLE_OWNER, your GitHub user, has no default: bn_require_owner. The
+# personal vault's repository and folder default to binnacle-<user> and
+# ~/binnacle-<user> (bn_require_owner sets them), after the work brain's
+# binnacle-<org>-<user>; BINNACLE_REPO (e.g. binnacle-vault) and
+# BINNACLE_DIR override them.
 BINNACLE_OWNER=${BINNACLE_OWNER:-}
-BINNACLE_REPO=${BINNACLE_REPO:-binnacle}
-BINNACLE_DIR=${BINNACLE_DIR:-$HOME/binnacle}
+BINNACLE_REPO=${BINNACLE_REPO:-}
+BINNACLE_DIR=${BINNACLE_DIR:-}
 BINNACLE_MIN_OBSIDIAN=${BINNACLE_MIN_OBSIDIAN:-1.13}
 
 bn_log() { printf '==> %s\n' "$*"; }
@@ -96,20 +100,33 @@ bn_path_is_under() {
   return 1
 }
 
+# bn_slug TEXT: lowercase; every run of characters outside [a-z0-9-]
+# becomes one '-'; repeated dashes collapse; leading and trailing dashes go.
+bn_slug() {
+  printf '%s' "$1" | LC_ALL=C tr '[:upper:]' '[:lower:]' \
+    | LC_ALL=C sed -e 's/[^a-z0-9-][^a-z0-9-]*/-/g' -e 's/--*/-/g' -e 's/^-//' -e 's/-$//'
+}
+
 # bn_require_owner: die before any change unless BINNACLE_OWNER, your
-# GitHub user, is set.
+# GitHub user, is set; then default BINNACLE_REPO to binnacle-<user> and
+# BINNACLE_DIR to ~/<BINNACLE_REPO>.
 bn_require_owner() {
+  local user
   [ -n "$BINNACLE_OWNER" ] || bn_die "set BINNACLE_OWNER=<your-github-user> (your GitHub user) and re-run; nothing was changed"
+  user=$(bn_slug "$BINNACLE_OWNER")
+  [ -n "$user" ] || bn_die "BINNACLE_OWNER '$BINNACLE_OWNER' has no letters or digits to name the vault after"
+  BINNACLE_REPO=${BINNACLE_REPO:-binnacle-$user}
+  BINNACLE_DIR=${BINNACLE_DIR:-$HOME/$BINNACLE_REPO}
 }
 
 # bn_marketplace: print where the binnacle Claude Code plugin comes from:
-# BINNACLE_MARKETPLACE, else <BINNACLE_OWNER>/binnacle-template (your fork);
-# nothing when neither is set.
+# BINNACLE_MARKETPLACE, else <BINNACLE_OWNER>/binnacle (your fork of the
+# template); nothing when neither is set.
 bn_marketplace() {
   if [ -n "${BINNACLE_MARKETPLACE:-}" ]; then
     printf '%s\n' "$BINNACLE_MARKETPLACE"
   elif [ -n "$BINNACLE_OWNER" ]; then
-    printf '%s/binnacle-template\n' "$BINNACLE_OWNER"
+    printf '%s/binnacle\n' "$BINNACLE_OWNER"
   fi
 }
 
@@ -152,7 +169,7 @@ bn_set_git_identity() {
 # The marketplace this template publishes (.claude-plugin/marketplace.json)
 # and the plugin in it. setup/common/register-vault.sh uses them; the
 # setup scripts tell it where the marketplace is (bn_marketplace).
-BN_MARKETPLACE_NAME=binnacle-template
+BN_MARKETPLACE_NAME=binnacle
 BN_PLUGIN=binnacle@$BN_MARKETPLACE_NAME
 # The scope line of a personal vault in the vault list.
 # shellcheck disable=SC2034 # used by the setup scripts that source this file
@@ -272,7 +289,7 @@ bn_claude_plugin() {
     return 0
   fi
   if [ -z "${BINNACLE_MARKETPLACE:-}" ]; then
-    bn_warn "skipped the binnacle Claude Code plugin: cannot tell which fork of binnacle-template it comes from. Set BINNACLE_MARKETPLACE=<your-github-user>/binnacle-template (or BINNACLE_OWNER) and re-run this setup"
+    bn_warn "skipped the binnacle Claude Code plugin: cannot tell which fork of the binnacle template it comes from. Set BINNACLE_MARKETPLACE=<your-github-user>/binnacle (or BINNACLE_OWNER) and re-run this setup"
     return 1
   fi
   if ! { "$claude" plugin marketplace add "$BINNACLE_MARKETPLACE" --scope user >/dev/null \

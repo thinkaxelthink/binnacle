@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Set up a company brain on a work machine: a separate vault, beside the
-# personal ~/binnacle, where Claude Code writes the wiki. Idempotent.
+# personal vault, where Claude Code writes the wiki. Idempotent.
 #
 # Usage: setup/work-brain/setup.sh --org ORG --user USER [--dir DIR]
 #                                  [--git-name NAME] [--git-email EMAIL]
@@ -14,18 +14,20 @@
 #                USER@users.noreply.github.com)
 #   Missing --org or --user are asked for when run from a terminal.
 #
-# Run it from a clean binnacle-template checkout the first time; later runs
+# Run it from a clean checkout of the binnacle template (your fork) the
+# first time; later runs
 # can use the copy inside the vault. It starts with no remote: the vault is
 # created locally from the template (git init, local commits, the gitleaks +
 # 10 MB pre-commit hook), marked binnacle.role=wiki-writer and
 # binnacle.localOnly=true. setup/work-brain/connect-remote.sh adds the
 # remote later. It refuses any folder that is not new or this brain's own
-# vault, a vault whose origin points elsewhere, and ~/binnacle (or anything
-# that resolves into it), which it never touches.
+# vault, a vault whose origin points elsewhere, and any personal vault or
+# template checkout (or anything inside or resolving into one), which it
+# never touches.
 # Env: BINNACLE_GH (gh), BINNACLE_GITLEAKS, BINNACLE_GIT_NAME and
 #      BINNACLE_GIT_EMAIL (same as the flags; the flags win),
 #      BINNACLE_OWNER (your GitHub user; the plugin comes from
-#      <BINNACLE_OWNER>/binnacle-template), BINNACLE_MARKETPLACE (overrides
+#      <BINNACLE_OWNER>/binnacle), BINNACLE_MARKETPLACE (overrides
 #      it; with neither set, the plugin step warns and setup continues).
 # Human-only steps are in setup/work-brain/CHECKLIST.md.
 set -eu
@@ -102,7 +104,7 @@ if ! git -C "$dir" rev-parse --verify -q 'HEAD^{commit}' >/dev/null; then
   # New, or a first run that stopped before its first commit.
   src=$(git -C "$here/../.." rev-parse --show-toplevel)
   [ "$(bn_physical_path "$src")" != "$(bn_physical_path "$dir")" ] \
-    || bn_die "$dir has no commit yet; run this script from the binnacle-template checkout"
+    || bn_die "$dir has no commit yet; run this script from the binnacle template checkout"
   wb_template_is_clean "$src"
   git -C "$src" archive --format=tar HEAD | tar -xf - -C "$dir"
   wb_apply_rules "$dir"
@@ -135,7 +137,7 @@ bn_log "hooks"
 if ! git -C "$dir" rev-parse --verify -q 'HEAD^{commit}' >/dev/null; then
   bn_log "first commit (the pre-commit hook scans it)"
   git -C "$dir" add -A
-  git -C "$dir" commit -q -m "work brain $name, from binnacle-template ${template_rev:-}"
+  git -C "$dir" commit -q -m "work brain $name, from binnacle ${template_rev:-}"
   bn_ok "committed on main"
 fi
 

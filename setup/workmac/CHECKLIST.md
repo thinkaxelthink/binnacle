@@ -4,7 +4,7 @@ Read and capture only. No AI writes here: the clone is marked
 `binnacle.role=capture` and `bin/binnacle-run` refuses to run. Do
 `setup/github/CHECKLIST.md` and shoyu first.
 
-The vault lives at `~/binnacle`, never inside your employer's documents
+The vault lives at `~/binnacle-<user>`, never inside your employer's documents
 folder (the script refuses that location). Capture only personal thoughts and
 architectural learnings; nothing from work systems, no member, payment or
 contract material, no credentials.
@@ -36,14 +36,20 @@ contract material, no credentials.
       GitHub login and the password is the token (kept in the keychain):
 
       ```sh
-      git clone https://github.com/<your-github-user>/binnacle.git ~/binnacle
+      git clone https://github.com/<your-github-user>/binnacle-<user>.git ~/binnacle-<user>
       ```
 
 ## The script
 
 ```sh
-BINNACLE_OWNER=<your-github-user> ~/binnacle/setup/workmac/setup.sh   # safe to re-run
+BINNACLE_OWNER=<your-github-user> ~/binnacle-<user>/setup/workmac/setup.sh   # safe to re-run
 ```
+
+`<user>` is your GitHub login in lower case: the vault defaults to the
+repository `binnacle-<user>` in `~/binnacle-<user>`. If yours has another
+name, clone it to its own folder and pass `BINNACLE_REPO` (it moves the
+default folder with it), e.g.
+`BINNACLE_OWNER=<your-github-user> BINNACLE_REPO=binnacle-vault ~/binnacle-vault/setup/workmac/setup.sh`.
 
 It refuses to run until `binnacle.workDocs` is set, refuses any vault
 location inside that folder, verifies the clone, marks it
@@ -57,7 +63,7 @@ gitleaks + 10 MB pre-commit hook, recording the gitleaks path in
 
 It also tells Claude Code on this Mac about the vault
 (`setup/common/register-vault.sh`): it registers this template's plugin
-marketplace from your fork, `<your-github-user>/binnacle-template` (your
+marketplace from your fork, `<your-github-user>/binnacle` (your
 GitHub user comes from `BINNACLE_OWNER`; `BINNACLE_MARKETPLACE` names
 another repository) and installs or updates
 the `binnacle` plugin at user scope with the `claude` CLI (skipped, with a
@@ -72,12 +78,12 @@ You do not set `user.name` or `user.email`
 yourself; to use a different identity, re-run the script with the env vars:
 
 ```sh
-BINNACLE_OWNER=<your-github-user> BINNACLE_GIT_NAME="<name>" BINNACLE_GIT_EMAIL="<email>" ~/binnacle/setup/workmac/setup.sh
+BINNACLE_OWNER=<your-github-user> BINNACLE_GIT_NAME="<name>" BINNACLE_GIT_EMAIL="<email>" ~/binnacle-<user>/setup/workmac/setup.sh
 ```
 
 ## In Obsidian
 
-- [ ] **[work Mac, human]** Open folder as vault: `~/binnacle`.
+- [ ] **[work Mac, human]** Open folder as vault: `~/binnacle-<user>`.
 - [ ] **[work Mac, human]** Community plugins on; enable **Obsidian Git**
       (already listed in the committed `.obsidian/`).
 - [ ] **[work Mac, human]** Obsidian Git settings: auto pull on startup on;
@@ -87,4 +93,4 @@ BINNACLE_OWNER=<your-github-user> BINNACLE_GIT_NAME="<name>" BINNACLE_GIT_EMAIL=
 - [ ] **[work Mac, human]** Write only in `raw/inbox/` (captures) and
       `soundings/` (hand-written notes). Read everything else.
 - [ ] **[work Mac, human]** Do not run Claude Code or any other AI tool
-      against `~/binnacle`.
+      against `~/binnacle-<user>`.

@@ -8,7 +8,7 @@
 #   another binnacle-run still running in this clone (lock
 #   .git/binnacle-run.lock) -> "skipped: another binnacle-run", exit 0.
 #   empty raw/inbox on origin/main -> say so, exit 0: no branch, no PR.
-#   otherwise, in a temporary worktree (your ~/binnacle checkout and
+#   otherwise, in a temporary worktree (your vault checkout and
 #   Obsidian are never switched off main; origin/main is fetched into the
 #   run-private ref refs/binnacle-run/base, never into refs/remotes/origin/main
 #   or FETCH_HEAD, so Obsidian Git's pull is not disturbed):

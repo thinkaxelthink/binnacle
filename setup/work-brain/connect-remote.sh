@@ -8,7 +8,7 @@
 #              its name must be the brain's name
 #
 # Before pushing it re-runs the collision checks: the vault must be a work
-# brain (never ~/binnacle), any existing origin must be this repository
+# brain (never a personal vault), any existing origin must be this repository
 # (GitHub owner and name compared case-insensitively, ignoring a trailing
 # .git or /), the
 # repository must be reachable and hold nothing but this brain's own

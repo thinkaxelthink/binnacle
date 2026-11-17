@@ -489,14 +489,14 @@ check "lib: 1.13.0 >= 1.13" bash -c '. "$1"; bn_version_ge 1.13.0 1.13' _ "$lib"
 check "lib: 1.9.10 < 1.13" expect_fail bash -c '. "$1"; bn_version_ge 1.9.10 1.13' _ "$lib"
 mkdir -p "$T/home/Documents/Employer-Docs"
 ln -s "$T/home/Documents/Employer-Docs" "$T/home/work-link"
-check "workmac: refuses to run when the work folder is unset" expect_fail env HOME="$T/home" \
+check "workmac: refuses to run when the work folder is unset" expect_fail env HOME="$T/home" BINNACLE_OWNER=example-user \
   BINNACLE_DIR="$T/home/binnacle" "$repo/setup/workmac/setup.sh"
 check "workmac: unset work folder creates no clone" test ! -e "$T/home/binnacle"
 # shellcheck disable=SC2088 # a literal ~ is what the setup script must expand
 git config --global binnacle.workDocs "~/Documents/Employer-Docs"
-check "workmac: refuses a clone inside the work folder" expect_fail env HOME="$T/home" \
+check "workmac: refuses a clone inside the work folder" expect_fail env HOME="$T/home" BINNACLE_OWNER=example-user \
   BINNACLE_DIR="$T/home/Documents/employer-docs/binnacle" "$repo/setup/workmac/setup.sh"
-check "workmac: refuses a symlink into the work folder" expect_fail env HOME="$T/home" \
+check "workmac: refuses a symlink into the work folder" expect_fail env HOME="$T/home" BINNACLE_OWNER=example-user \
   BINNACLE_DIR="$T/home/work-link/binnacle" "$repo/setup/workmac/setup.sh"
 check "workmac: marks an existing clone capture-only" env HOME="$T/home" BINNACLE_DIR="$V" \
   BINNACLE_OWNER="${T##*/}" BINNACLE_REPO=remote "$repo/setup/workmac/setup.sh"
@@ -553,6 +553,19 @@ check "github --dry-run: changes nothing, names the check" bash -c \
   'BINNACLE_OWNER=example-user "$1" --dry-run | grep -q "\"context\": \"gitleaks\""' _ "$repo/setup/github/setup.sh"
 
 # No built-in GitHub user: BINNACLE_OWNER is required, else a clear refusal.
+# The personal vault defaults to binnacle-<user> at ~/binnacle-<user>, after
+# the work brain's binnacle-<org>-<user>; BINNACLE_REPO and BINNACLE_DIR
+# override it. The template (and plugin marketplace) is <user>/binnacle.
+check "names: personal vault defaults to binnacle-<user> in ~/binnacle-<user>" test \
+  "$(env -u BINNACLE_REPO -u BINNACLE_DIR HOME=/h BINNACLE_OWNER=Some_User bash -c '. "$1"; bn_require_owner; echo "$BINNACLE_REPO $BINNACLE_DIR"' _ "$lib")" \
+  = "binnacle-some-user /h/binnacle-some-user"
+check "names: BINNACLE_REPO renames the vault and its folder" test \
+  "$(env -u BINNACLE_DIR HOME=/h BINNACLE_OWNER=someone BINNACLE_REPO=binnacle-vault bash -c '. "$1"; bn_require_owner; echo "$BINNACLE_REPO $BINNACLE_DIR"' _ "$lib")" \
+  = "binnacle-vault /h/binnacle-vault"
+check "names: github --dry-run creates <user>/binnacle-<user> from <user>/binnacle" bash -c \
+  'env -u BINNACLE_REPO BINNACLE_OWNER=example-user "$1" --dry-run >"$2" 2>&1 \
+    && grep -q "example-user/binnacle-example-user" "$2" && grep -q "PATCH repos/example-user/binnacle -F is_template=true" "$2"' \
+  _ "$repo/setup/github/setup.sh" "$T/names.out"
 check "owner: github setup refuses with no owner" bash -c \
   '! env -u BINNACLE_OWNER "$1/setup/github/setup.sh" --dry-run >"$2" 2>&1 && grep -q "BINNACLE_OWNER=<your-github-user>" "$2"' \
   _ "$T/seed" "$T/owner.out"
@@ -572,7 +585,7 @@ v1=$(bash -c '. "$1"; bn_physical_path "$2"' _ "$lib" "$CH/v1")
 v2=$(bash -c '. "$1"; bn_physical_path "$2"' _ "$lib" "$CH/v2")
 reg_sh=$repo/setup/common/register-vault.sh
 reg() { # args... -> register-vault.sh with HOME=$CH, output in $T/reg.out
-  env HOME="$CH" STUB_CLAUDE_PLUGIN_LOG="$T/plugin.log" BINNACLE_MARKETPLACE=example-user/binnacle-template \
+  env HOME="$CH" STUB_CLAUDE_PLUGIN_LOG="$T/plugin.log" BINNACLE_MARKETPLACE=example-user/binnacle \
     "$reg_sh" "$@" >"$T/reg.out" 2>&1
 }
 rows() { grep -c '^- \*\*.*\*\* at `' "$CMD"; }
@@ -584,10 +597,10 @@ check "vault list: block markers present once" bash -c \
   'test "$(grep -cx "<!-- binnacle:begin -->" "$1")" = 1 && test "$(grep -cx "<!-- binnacle:end -->" "$1")" = 1' _ "$CMD"
 check "vault list: block names the binnacle skill" grep -q 'Use the `binnacle` skill' "$CMD"
 check "plugin: marketplace added, refreshed, plugin installed and updated at user scope" diff -u - "$T/plugin.log" <<PLUG
-claude plugin marketplace add example-user/binnacle-template --scope user
-claude plugin marketplace update binnacle-template
-claude plugin install binnacle@binnacle-template --scope user
-claude plugin update binnacle@binnacle-template --scope user
+claude plugin marketplace add example-user/binnacle --scope user
+claude plugin marketplace update binnacle
+claude plugin install binnacle@binnacle --scope user
+claude plugin update binnacle@binnacle --scope user
 PLUG
 cp "$CMD" "$T/cmd.before"
 : >"$T/plugin.log"
@@ -596,7 +609,7 @@ check "plugin: BINNACLE_MARKETPLACE names the source" env BINNACLE_MARKETPLACE=s
 check "plugin: marketplace added from that source" grep -qx "claude plugin marketplace add someone/fork --scope user" "$T/plugin.log"
 check "plugin: without BINNACLE_MARKETPLACE, the plugin step fails with the fix" bash -c \
   '! env -u BINNACLE_MARKETPLACE HOME="$1" "$2" one "$1/v1" "personal: first" >"$3" 2>&1 \
-    && grep -q "Set BINNACLE_MARKETPLACE=<your-github-user>/binnacle-template" "$3"' _ "$CH" "$reg_sh" "$T/reg.out"
+    && grep -q "Set BINNACLE_MARKETPLACE=<your-github-user>/binnacle" "$3"' _ "$CH" "$reg_sh" "$T/reg.out"
 check "plugin: without BINNACLE_MARKETPLACE, the vault is still listed" grep -qF "**one** at \`$v1\`" "$CMD"
 check "vault list: re-run on a new file changes nothing" cmp -s "$T/cmd.before" "$CMD"
 # Surround the block with the owner's own content, which must never change.
@@ -646,7 +659,7 @@ vp=$(bash -c '. "$1"; bn_physical_path "$2"' _ "$lib" "$V")
 check "shoyu and workmac: vault listed once in ~/.claude/CLAUDE.md" test "$(grep -cF "at \`$vp\`:" "$T/home/.claude/CLAUDE.md")" = 1
 check "shoyu and workmac: personal scope, named after the repo" \
   grep -qxF -- "- **remote** at \`$vp\`: personal: the owner's own thinking and architectural learnings; never company material" "$T/home/.claude/CLAUDE.md"
-check "shoyu: installs the plugin from <BINNACLE_OWNER>/binnacle-template" bash -c ': >"$1" && env STUB_CLAUDE_PLUGIN_LOG="$1" HOME="$2" BINNACLE_DIR="$3" BINNACLE_OWNER="$4" BINNACLE_REPO=remote "$5" >/dev/null 2>&1; grep -qx "claude plugin marketplace add $4/binnacle-template --scope user" "$1" && grep -q "plugin install binnacle@binnacle-template --scope user" "$1"' \
+check "shoyu: installs the plugin from <BINNACLE_OWNER>/binnacle" bash -c ': >"$1" && env STUB_CLAUDE_PLUGIN_LOG="$1" HOME="$2" BINNACLE_DIR="$3" BINNACLE_OWNER="$4" BINNACLE_REPO=remote "$5" >/dev/null 2>&1; grep -qx "claude plugin marketplace add $4/binnacle --scope user" "$1" && grep -q "plugin install binnacle@binnacle --scope user" "$1"' \
   _ "$T/plugin.log" "$T/home" "$V" "${T##*/}" "$repo/setup/shoyu/setup.sh"
 if command -v claude >/dev/null 2>&1; then
   check "plugin manifests: marketplace validates (--strict)" env HOME="$T/vhome" claude plugin validate "$repo" --strict
@@ -1459,21 +1472,26 @@ check "gpull --consent: that refusal saves nothing" test ! -e "$GV/.binnacle/tok
 git -C "$GV" config binnacle.googleTokenFile "$G/creds/token.json"
 
 # --- setup/work-brain (company brain on a work machine) -------------------------------------
-# A throwaway HOME with a personal ~/binnacle that must never change. The
+# A throwaway HOME with a personal ~/binnacle-jdoe that must never change. The
 # profile runs from the seed checkout (the template as committed).
 WH=$T/wbhome
 mkdir -p "$WH"
-git clone -q "$T/remote.git" "$WH/binnacle"
-printf 'personal note\n' >"$WH/binnacle/soundings/mine.md"
-printf 'spaced note\n' >"$WH/binnacle/soundings/used instances.md"
-printf 'quoted note\n' >"$WH/binnacle/soundings/it's a \"note\".md"
-personal_sum() { (cd "$WH/binnacle" && find . -path ./.git/index -prune -o -type f -print0 | LC_ALL=C sort -z | xargs -0 cksum); }
+git clone -q "$T/remote.git" "$WH/binnacle-jdoe"
+printf 'personal note\n' >"$WH/binnacle-jdoe/soundings/mine.md"
+printf 'spaced note\n' >"$WH/binnacle-jdoe/soundings/used instances.md"
+printf 'quoted note\n' >"$WH/binnacle-jdoe/soundings/it's a \"note\".md"
+personal_sum() { (cd "$WH/binnacle-jdoe" && find . -path ./.git/index -prune -o -type f -print0 | LC_ALL=C sort -z | xargs -0 cksum); }
 personal_before=$(personal_sum)
 check "work-brain: personal checksum covers names with spaces and quotes" \
   bash -c 'grep -qF "used instances.md" <<<"$1" && grep -qF "it'"'"'s a \"note\".md" <<<"$1"' _ "$personal_before"
 wblib() { bash -c '. "$1/setup/common/lib.sh"; . "$1/setup/work-brain/lib.sh"; shift; "$@"' _ "$repo" "$@"; }
 check "work-brain: slug lowercases and joins words" test "$(wblib wb_slug 'Acme Engineering')" = acme-engineering
 check "work-brain: slug squeezes runs and trims dashes" test "$(wblib wb_slug '--ACME__Eng!!--')" = acme-eng
+check "work-brain: base from a first commit made from binnacle" \
+  test "$(wblib wb_subject_base 'work brain binnacle-acme-jdoe, from binnacle 1a2b3c4')" = 1a2b3c4
+check "work-brain: base from a first commit made before the rename from binnacle-template" \
+  test "$(wblib wb_subject_base 'work brain binnacle-acme-jdoe, from binnacle-template 1a2b3c4')" = 1a2b3c4
+check "work-brain: no base from an unrelated first commit" test -z "$(wblib wb_subject_base 'initial commit')"
 check "work-brain: name binnacle-<org>-<user>" \
   test "$(wblib wb_name Acme-Engineering JDoe)" = binnacle-acme-engineering-jdoe
 check "work-brain: name refuses an org with nothing left after slugging" expect_fail wblib wb_name '!!!' jdoe
@@ -1535,8 +1553,8 @@ if [ "$template_rules" = yes ]; then
   check "work-brain setup: marketplace from BINNACLE_OWNER, not --user" bash -c \
     'env BINNACLE_OWNER=someowner STUB_CLAUDE_PLUGIN_LOG="$1" HOME="$2" "$3" --org acme-engineering --user jdoe >"$4" 2>&1' \
     _ "$T/plugin.log" "$WH" "$B/setup/work-brain/setup.sh" "$T/wb.out"
-  check "work-brain setup: plugin marketplace added from <BINNACLE_OWNER>/binnacle-template" \
-    grep -qx "claude plugin marketplace add someowner/binnacle-template --scope user" "$T/plugin.log"
+  check "work-brain setup: plugin marketplace added from <BINNACLE_OWNER>/binnacle" \
+    grep -qx "claude plugin marketplace add someowner/binnacle --scope user" "$T/plugin.log"
 
   # Collisions: nothing but a new folder or this brain's own vault.
   mkdir -p "$WH/foreign"
@@ -1545,10 +1563,10 @@ if [ "$template_rules" = yes ]; then
   git init -q "$WH/other-repo"
   check "work-brain collision: refuses an unrelated git repo" expect_fail wb_setup --org acme --user jdoe --dir "$WH/other-repo"
   check "work-brain collision: refuses another brain's vault" expect_fail wb_setup --org acme-engineering --user someone --dir "$B"
-  check "work-brain collision: refuses ~/binnacle" expect_fail wb_setup --org acme --user jdoe --dir "$WH/binnacle"
-  check "work-brain collision: refuses a folder inside ~/binnacle" expect_fail wb_setup --org acme --user jdoe --dir "$WH/binnacle/brain"
-  ln -s "$WH/binnacle" "$WH/binnacle-acme-jdoe"
-  check "work-brain collision: refuses a symlink to ~/binnacle" expect_fail wb_setup --org acme --user jdoe
+  check "work-brain collision: refuses the personal vault" expect_fail wb_setup --org acme --user jdoe --dir "$WH/binnacle-jdoe"
+  check "work-brain collision: refuses a folder inside the personal vault" expect_fail wb_setup --org acme --user jdoe --dir "$WH/binnacle-jdoe/brain"
+  ln -s "$WH/binnacle-jdoe" "$WH/binnacle-acme-jdoe"
+  check "work-brain collision: refuses a symlink to the personal vault" expect_fail wb_setup --org acme --user jdoe
   rm "$WH/binnacle-acme-jdoe"
   git -C "$B" remote add origin "$T/elsewhere.git"
   check "work-brain collision: refuses a vault whose origin points elsewhere" expect_fail wb_setup --org acme-engineering --user jdoe
@@ -1718,8 +1736,8 @@ if [ "$template_rules" = yes ]; then
   git -C "$B" remote set-url origin "$T/elsewhere/binnacle-acme-engineering-jdoe.git"
   check "connect: setup refuses an origin changed by hand" expect_fail wb_setup --org acme-engineering --user jdoe
   git -C "$B" remote set-url origin "$BR"
-  check "connect: refuses to run in ~/binnacle" expect_fail \
-    env HOME="$WH" "$WH/binnacle/setup/work-brain/connect-remote.sh" --url "$BR"
+  check "connect: refuses to run in the personal vault" expect_fail \
+    env HOME="$WH" "$WH/binnacle-jdoe/setup/work-brain/connect-remote.sh" --url "$BR"
   # GitHub owner/repo compare case-insensitively: a mixed-case --url matches the
   # lowercase origin. Both spellings are rewritten to the local bare repository.
   check "work-brain: GitHub remote key lowercases owner/repo, drops .git" \
@@ -1774,7 +1792,7 @@ if [ "$template_rules" = yes ]; then
   tpl_head=$(git -C "$TPL" rev-parse HEAD)
   no_update_branch() { test -z "$(git -C "$1" branch --list 'binnacle-update/*')"; }
 
-  check "update: refuses the personal ~/binnacle" expect_fail upd "$WH/binnacle"
+  check "update: refuses the personal vault" expect_fail upd "$WH/binnacle-jdoe"
   check "update: personal refusal says so" grep -q 'personal vault' "$T/upd.out"
   check "update: refuses a repository that is not a work brain" expect_fail upd "$WH/other-repo"
   check "update: says it is not a work brain" grep -q 'not a work-brain vault' "$T/upd.out"
@@ -1966,7 +1984,7 @@ if [ "$template_rules" = yes ]; then
   check "work brain with content: selftest ran the import finish checks" \
     grep -q '^ok     import finish: lists an oversized file whose name has spaces and quotes' "$T/wbself.out"
 fi
-check "work-brain: personal ~/binnacle untouched" test "$(personal_sum)" = "$personal_before"
+check "work-brain: personal vault untouched" test "$(personal_sum)" = "$personal_before"
 
 printf '\n%s passed, %s failed\n' "$passed" "$failed"
 if [ "$failed" -gt 0 ]; then

@@ -2,17 +2,10 @@
 # Helpers for the work-brain profile (a company brain on a work machine).
 # Source it after setup/common/lib.sh; do not run it.
 
-# The personal vault. The work-brain scripts never create, change or
-# connect anything at or inside it.
-WB_PERSONAL_DIR=$HOME/binnacle
 WB_PROFILE=work-brain
 
-# wb_slug TEXT: lowercase; every run of characters outside [a-z0-9-]
-# becomes one '-'; repeated dashes collapse; leading and trailing dashes go.
-wb_slug() {
-  printf '%s' "$1" | LC_ALL=C tr '[:upper:]' '[:lower:]' \
-    | LC_ALL=C sed -e 's/[^a-z0-9-][^a-z0-9-]*/-/g' -e 's/--*/-/g' -e 's/^-//' -e 's/-$//'
-}
+# wb_slug TEXT: bn_slug (setup/common/lib.sh).
+wb_slug() { bn_slug "$1"; }
 
 # wb_name ORG USER: print binnacle-<org>-<user>, both slugged.
 wb_name() {
@@ -30,12 +23,33 @@ wb_scope() {
   printf "work: company brain for the %s organization; never customer or member personal data, payment data, minors' names, health or waiver records, or credentials\n" "$1"
 }
 
-# wb_refuse_personal DIR: die when DIR is the personal vault or inside it,
-# after resolving symlinks.
+# wb_subject_base SUBJECT: print the template revision a brain's first
+# commit message names ("work brain <name>, from binnacle <rev>", or
+# "..., from binnacle-template <rev>" in a brain made before the template
+# was renamed), or nothing.
+wb_subject_base() {
+  case $1 in
+    *", from binnacle "*) printf '%s\n' "${1##*, from binnacle }" ;;
+    *", from binnacle-template "*) printf '%s\n' "${1##*, from binnacle-template }" ;;
+  esac
+}
+
+# wb_refuse_personal DIR: die when DIR is, is inside, or resolves into a
+# Binnacle checkout that is not a work brain (a git repository with
+# bin/binnacle-run at its top): a personal vault (default
+# ~/binnacle-<user>) or a clone of the template. The work-brain scripts
+# never create, change or connect anything there.
 wb_refuse_personal() {
-  if bn_path_is_under "$1" "$WB_PERSONAL_DIR"; then
-    bn_die "refusing: $1 is (or resolves to) the personal vault $WB_PERSONAL_DIR or a folder inside it. The work brain lives beside it, e.g. ~/binnacle-<org>-<user>."
-  fi
+  local p top
+  p=$(bn_physical_path "$1")
+  while [ ! -d "$p" ]; do
+    p=${p%/*}
+    [ -n "$p" ] || p=/
+  done
+  top=$(git -C "$p" rev-parse --show-toplevel 2>/dev/null) || return 0
+  [ -e "$top/bin/binnacle-run" ] || return 0
+  [ "$(git -C "$top" config --local --get binnacle.profile || true)" != "$WB_PROFILE" ] || return 0
+  bn_die "refusing: $1 is (or resolves into) $top, a personal vault or a checkout of the template, not a work brain. The work brain lives beside it, e.g. ~/binnacle-<org>-<user>."
 }
 
 # wb_vault_name DIR: print the brain name DIR is marked with, or nothing
@@ -110,7 +124,7 @@ wb_check_target() {
 wb_template_is_clean() {
   local src=$1 p extra="" first
   git -C "$src" rev-parse --verify -q 'HEAD^{commit}' >/dev/null \
-    || bn_die "$src has no commits; run this script from a binnacle-template checkout"
+    || bn_die "$src has no commits; run this script from a checkout of the binnacle template"
   while IFS= read -r p; do
     case $p in
       raw/inbox/.gitkeep | soundings/.gitkeep | audit/runs/.gitkeep | wiki/index.md | wiki/log.md) ;;
@@ -121,7 +135,7 @@ wb_template_is_clean() {
   first=${first%% *}
   if [ -n "$extra" ] || git -C "$src" show HEAD:wiki/log.md 2>/dev/null | grep -q '^## \[' \
     || git -C "$src" show HEAD:wiki/index.md 2>/dev/null | grep -q '\[\['; then
-    bn_die "refusing: $src holds vault content${first:+ (e.g. $first)}; run this script from a clean binnacle-template checkout, never from a vault"
+    bn_die "refusing: $src holds vault content${first:+ (e.g. $first)}; run this script from a clean checkout of the binnacle template, never from a vault"
   fi
 }
 

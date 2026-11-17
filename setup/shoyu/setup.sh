@@ -2,8 +2,9 @@
 # Set up shoyu, the only machine where Claude Code writes the wiki. Idempotent.
 #
 # Usage: setup/shoyu/setup.sh
-# Env:   BINNACLE_OWNER (required: your GitHub user), BINNACLE_REPO (binnacle),
-#        BINNACLE_DIR (~/binnacle), BINNACLE_MIN_OBSIDIAN (1.13),
+# Env:   BINNACLE_OWNER (required: your GitHub user),
+#        BINNACLE_REPO (binnacle-<user>, e.g. BINNACLE_REPO=binnacle-vault),
+#        BINNACLE_DIR (~/<BINNACLE_REPO>), BINNACLE_MIN_OBSIDIAN (1.13),
 #        BINNACLE_GH_TOKEN_FILE (unset; a mode-600 token file for when the
 #        keychain is unreachable, recorded as binnacle.ghTokenFile),
 #        BINNACLE_GIT_NAME (existing vault-local user.name, else BINNACLE_OWNER),

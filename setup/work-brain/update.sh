@@ -4,7 +4,7 @@
 # Usage: setup/work-brain/update.sh VAULT
 #   VAULT   the work brain's folder, e.g. ~/binnacle-acme-engineering-jdoe
 #
-# Run it from a clean, up-to-date binnacle-template checkout, never from the
+# Run it from a clean, up-to-date checkout of the binnacle template, never from the
 # vault. It:
 #   1. finds the template commit the vault was built from: git config
 #      binnacle.templateBase (setup.sh and this script record it), else the
@@ -31,7 +31,8 @@
 # .git/binnacle-local-backup/<id>/, outside the working tree. Local only,
 # they are put back after main is fast-forwarded; connected, the output
 # says how to put them back once pulling the merged PR has deleted them.
-# It refuses ~/binnacle (or anything resolving into it), a folder that is
+# It refuses a personal vault or template checkout (or anything inside or
+# resolving into one), a folder that is
 # not a work-brain vault, a vault with uncommitted changes or off main, a
 # connected vault whose main differs from origin's, a waiting
 # binnacle-update/* branch or PR, and a base this
@@ -68,7 +69,7 @@ name=$(wb_vault_name "$vault")
 wb_check_origin "$vault"
 src=$(git -C "$here/../.." rev-parse --show-toplevel)
 [ "$(bn_physical_path "$src")" != "$vault" ] \
-  || bn_die "refusing: run this script from a binnacle-template checkout, not from the vault's own copy"
+  || bn_die "refusing: run this script from a checkout of the binnacle template, not from the vault's own copy"
 wb_template_is_clean "$src"
 head=$(git -C "$src" rev-parse HEAD)
 
@@ -137,8 +138,7 @@ if [ -n "$recorded" ]; then
 else
   root=$(git -C "$vault" rev-list --max-parents=0 "$BASE" | tail -n 1)
   subject=$(git -C "$vault" log -1 --format=%s "$root")
-  base_rev=""
-  case $subject in *", from binnacle-template "*) base_rev=${subject##*, from binnacle-template } ;; esac
+  base_rev=$(wb_subject_base "$subject")
   case $base_rev in "" | *[!0-9a-f]*) bn_die "refusing: unknown base: binnacle.templateBase is unset and the first commit ('$subject') names no template revision. Set it by hand once you know it: git -C $vault config binnacle.templateBase <commit>" ;; esac
   base_from="the first commit message"
 fi
@@ -251,7 +251,7 @@ run_id=$(date -u +%Y%m%dT%H%M%SZ)
 short_base=$(git -C "$src" rev-parse --short "$base")
 short_head=$(git -C "$src" rev-parse --short "$head")
 if [ "${#summary[@]}" -gt 0 ]; then
-  title="update from binnacle-template $short_base..$short_head"
+  title="update from binnacle $short_base..$short_head"
 else
   title="stop tracking .binnacle/ (local-only forms settings)"
 fi

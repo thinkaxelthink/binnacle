@@ -4,7 +4,7 @@
 #
 # Usage: bin/binnacle-import start|finish|status
 #
-#   start   in the vault clone (BINNACLE_DIR, default ~/binnacle): require
+#   start   in the vault clone (BINNACLE_DIR, required): require
 #           a clean tree on main that matches origin/main, then create
 #           branch import/notion-<UTC timestamp> and record it in
 #           `git config binnacle.importBranch`, a marker that scheduled
@@ -23,7 +23,8 @@
 #   status  show the clone's branch, the recorded import branch and what is
 #           waiting to be committed. Changes nothing, no network.
 #
-# Env: BINNACLE_DIR (~/binnacle), BINNACLE_REMOTE (origin),
+# Env: BINNACLE_DIR (required: your vault clone, e.g. ~/binnacle-<user>),
+#      BINNACLE_REMOTE (origin),
 #      BINNACLE_BASE (main), BINNACLE_GH (gh),
 #      BINNACLE_MAX_FILE_BYTES (10485760, as in .githooks/pre-commit).
 #      GH_TOKEN, if unset, comes from the same keychain item or mode-600
@@ -39,7 +40,7 @@ case $cmd in
   *) usage >&2; exit 2 ;;
 esac
 
-VAULT=${BINNACLE_DIR:-$HOME/binnacle}
+VAULT=${BINNACLE_DIR:-}
 REMOTE=${BINNACLE_REMOTE:-origin}
 BASE=${BINNACLE_BASE:-main}
 GH=${BINNACLE_GH:-gh}
@@ -55,6 +56,7 @@ die() {
   exit 1
 }
 
+[ -n "$VAULT" ] || die "set BINNACLE_DIR to your vault clone (e.g. ~/binnacle-<user>)"
 [ -d "$VAULT/.git" ] || die "no vault clone at $VAULT (set BINNACLE_DIR)"
 g() { git -C "$VAULT" "$@"; }
 
@@ -120,7 +122,7 @@ $dirty"
   # in this file; it must stay out of git or every import trips the zone check.
   if ! g check-ignore -q --no-index "$IMPORTER_DATA" \
     || g ls-files --error-unmatch "$IMPORTER_DATA" >/dev/null 2>&1; then
-    die "$IMPORTER_DATA is not ignored in $VAULT: add the line '$IMPORTER_DATA' to its .gitignore (as in binnacle-template), git rm --cached it if tracked, commit and push on $BASE, then re-run"
+    die "$IMPORTER_DATA is not ignored in $VAULT: add the line '$IMPORTER_DATA' to its .gitignore (as in the binnacle template), git rm --cached it if tracked, commit and push on $BASE, then re-run"
   fi
   g fetch --quiet "$REMOTE" "$BASE" || die "could not fetch $REMOTE/$BASE"
   local_head=$(g rev-parse HEAD)

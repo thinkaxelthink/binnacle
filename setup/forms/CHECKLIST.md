@@ -239,7 +239,7 @@ holding the .csv, or the linked sheet > File > Download > CSV) and run the
 converter by hand on the Mac where you capture:
 
 ```sh
-~/binnacle/bin/binnacle-forms-to-inbox --form-title "Reading group" \
+~/binnacle-<user>/bin/binnacle-forms-to-inbox --form-title "Reading group" \
   --form-id "<the form link>" --audience "reading group" \
   --consent-notice-version v1 ~/Downloads/responses.csv
 ```

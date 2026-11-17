@@ -17,7 +17,7 @@
 #
 # Env: BINNACLE_CLAUDE (claude), BINNACLE_MARKETPLACE (required for the
 #      plugin step: the GitHub repository that publishes the marketplace,
-#      your fork, e.g. <your-github-user>/binnacle-template; the setup
+#      your fork, e.g. <your-github-user>/binnacle; the setup
 #      scripts set it).
 # Exits 1 when the plugin step fails or BINNACLE_MARKETPLACE is unset; the
 # row is written first either way.

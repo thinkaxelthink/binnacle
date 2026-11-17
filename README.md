@@ -72,9 +72,10 @@ A vault has two kinds of machine:
 
 The template sets up two profiles:
 
-- **Personal vault** (default folder `~/binnacle`). Your own thinking and
-  architectural learnings. One wiki-writer, any number of capture devices,
-  and a private repository on your GitHub account.
+- **Personal vault** (default repository `binnacle-<user>`, in the folder
+  `~/binnacle-<user>`). Your own thinking and architectural learnings. One
+  wiki-writer, any number of capture devices, and a private repository on
+  your GitHub account.
 - **Work brain** (`setup/work-brain/`). A separate vault for your job, on
   your work machine, which is its own wiki-writer. It may hold company
   material within fixed limits (see "How Binnacle protects you"). It starts
@@ -117,16 +118,25 @@ GitHub, wiki-writer and capture Mac scripts stop before changing
 anything. In the checklists' clone URLs, `<your-github-user>` stands for
 your GitHub login.
 
+Names follow one pattern. The template, your fork of it and its plugin
+marketplace are `binnacle`. A work brain is `binnacle-<org>-<user>`, and
+the personal vault defaults to `binnacle-<user>`, in `~/binnacle-<user>`,
+where `<user>` is your GitHub login in lower case. `BINNACLE_REPO` names
+the personal vault something else and moves its default folder with it,
+for example `BINNACLE_REPO=binnacle-vault` for `~/binnacle-vault`;
+`BINNACLE_DIR` sets the folder alone. Pass the same values to every
+setup script for that vault.
+
 ### Personal vault
 
 1. **Your copy of the template.** Fork this repository into your GitHub
-   account, keeping the name `binnacle-template`, and clone your fork:
+   account, keeping the name `binnacle`, and clone your fork:
 
    ```sh
-   git clone https://github.com/<your-github-user>/binnacle-template.git ~/src/binnacle-template
+   git clone https://github.com/<your-github-user>/binnacle.git ~/src/binnacle
    ```
 
-   The GitHub script marks `<your-github-user>/binnacle-template` as a
+   The GitHub script marks `<your-github-user>/binnacle` as a
    template and creates the vault from it (`BINNACLE_TEMPLATE_REPO` names
    a different repository).
 2. **GitHub.** Follow `setup/github/CHECKLIST.md`, then, from your fork's
@@ -143,7 +153,7 @@ your GitHub login.
    pushes and branch deletion are blocked. Admins are not enforced, so your
    capture devices can still push straight to `main`.
 3. **Wiki-writer machine.** Follow `setup/shoyu/CHECKLIST.md`, then run
-   `BINNACLE_OWNER=<your-github-user> ~/binnacle/setup/shoyu/setup.sh`. It marks the clone as the
+   `BINNACLE_OWNER=<your-github-user> ~/binnacle-<user>/setup/shoyu/setup.sh`. It marks the clone as the
    wiki-writer, sets the commit identity in the vault clone only, installs
    the pre-commit hook, checks for `git`, `gh`, `claude` and Obsidian, and
    sets up the Claude Code plugin and the vault's row in
@@ -151,7 +161,7 @@ your GitHub login.
    The checklist also covers the device token, Obsidian Git settings, and
    a first run.
 4. **Capture Mac** (optional). Follow `setup/workmac/CHECKLIST.md`, then
-   run `BINNACLE_OWNER=<your-github-user> ~/binnacle/setup/workmac/setup.sh`. It marks the clone as capture
+   run `BINNACLE_OWNER=<your-github-user> ~/binnacle-<user>/setup/workmac/setup.sh`. It marks the clone as capture
    only and sets up the Claude Code plugin and vault row as on the
    wiki-writer. It requires `git config --global binnacle.workDocs <folder>`,
    naming your employer's documents folder, and refuses to put the vault
@@ -167,7 +177,7 @@ permissions per device is in `setup/github/CHECKLIST.md`.
 
 Once a first run works, three optional additions:
 
-- **Nightly runs.** `~/binnacle/setup/shoyu/nightly.sh install` adds a
+- **Nightly runs.** `~/binnacle-<user>/setup/shoyu/nightly.sh install` adds a
   LaunchAgent that runs `bin/binnacle-nightly` at 03:30 local time
   (`BINNACLE_NIGHTLY_HOUR` and `BINNACLE_NIGHTLY_MINUTE` change it).
   `status` shows the last run and `uninstall` pauses it. Nothing is
@@ -187,14 +197,14 @@ Follow `setup/work-brain/CHECKLIST.md`. Clone your fork of the template
 somewhere outside any vault, then:
 
 ```sh
-BINNACLE_OWNER=<your-github-user> ~/src/binnacle-template/setup/work-brain/setup.sh \
+BINNACLE_OWNER=<your-github-user> ~/src/binnacle/setup/work-brain/setup.sh \
   --org <github org> --user <github user> --git-email <work email>
 ```
 
 The vault is named `binnacle-<org>-<user>` and lives at
 `~/binnacle-<org>-<user>` (`--dir` picks another folder). The script
 refuses a folder that collides with another vault and never touches
-`~/binnacle`. It writes the work brain's content limits into the vault's
+`~/binnacle-<user>`. It writes the work brain's content limits into the vault's
 `CLAUDE.md` and run prompt, and sets up the Claude Code plugin and the
 brain's row in `~/.claude/CLAUDE.md`, with the work scope.
 
@@ -235,8 +245,8 @@ not yet pushed waits for the next run.
 On the wiki-writer:
 
 ```sh
-~/binnacle/bin/binnacle-run --dry-run   # what would happen; no fetch, no Claude, no GitHub calls
-~/binnacle/bin/binnacle-run
+~/binnacle-<user>/bin/binnacle-run --dry-run   # what would happen; no fetch, no Claude, no GitHub calls
+~/binnacle-<user>/bin/binnacle-run
 ```
 
 Expect a pull request URL with auto-merge on. A run exits 0 without doing
@@ -289,7 +299,7 @@ up for a keep-or-delete review once a year.
 ## Claude Code integration
 
 This repository is also a Claude Code plugin marketplace,
-`binnacle-template` (`.claude-plugin/marketplace.json`), with one plugin,
+`binnacle` (`.claude-plugin/marketplace.json`), with one plugin,
 `binnacle` (`plugins/binnacle/`). Its skill works with the vaults on the
 machine it runs on:
 
@@ -307,7 +317,7 @@ Every vault setup script (`setup/shoyu/setup.sh`,
 `setup/common/register-vault.sh`, which:
 
 1. registers the marketplace in your fork,
-   `<your-github-user>/binnacle-template` (the account in
+   `<your-github-user>/binnacle` (the account in
    `BINNACLE_OWNER`; `BINNACLE_MARKETPLACE` names another) and installs or updates the
    `binnacle` plugin at user scope with the `claude` CLI. Without `claude`
    it skips this step with a message;
@@ -333,8 +343,8 @@ To install the plugin by hand on a machine with no vault setup, in Claude
 Code:
 
 ```
-/plugin marketplace add <owner>/binnacle-template
-/plugin install binnacle@binnacle-template
+/plugin marketplace add <owner>/binnacle
+/plugin install binnacle@binnacle
 ```
 
 ## How Binnacle protects you
@@ -384,13 +394,13 @@ Code:
   changing its environment variables, or to repair a machine. A re-run
   also updates the `binnacle` plugin and refreshes the vault's row in
   `~/.claude/CLAUDE.md`. Between re-runs,
-  `claude plugin marketplace update binnacle-template` and
-  `claude plugin update binnacle@binnacle-template` update the plugin.
+  `claude plugin marketplace update binnacle` and
+  `claude plugin update binnacle@binnacle` update the plugin.
 - **A work brain.** From an up-to-date template checkout outside the vault:
 
   ```sh
-  git -C ~/src/binnacle-template pull
-  ~/src/binnacle-template/setup/work-brain/update.sh ~/binnacle-<org>-<user>
+  git -C ~/src/binnacle pull
+  ~/src/binnacle/setup/work-brain/update.sh ~/binnacle-<org>-<user>
   ```
 
   It finds the template commit the brain was built from, stops and names
@@ -400,7 +410,7 @@ Code:
   Local only, it fast-forwards `main`; connected, it opens a pull request,
   without auto-merge, for you to review and merge.
 - **A personal vault.** [TK: there is no documented update path.
-  `update.sh` refuses `~/binnacle`. How should a personal vault pick up
+  `update.sh` refuses personal vaults. How should a personal vault pick up
   template changes?]
 
 ## Contributing

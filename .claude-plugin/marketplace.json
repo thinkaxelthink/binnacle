@@ -1,7 +1,7 @@
 {
-  "name": "binnacle-template",
+  "name": "binnacle",
   "owner": {
-    "name": "binnacle-template"
+    "name": "binnacle"
   },
   "description": "Claude Code plugins for Binnacle vaults: LLM-maintained Obsidian wikis built from this template.",
   "plugins": [
