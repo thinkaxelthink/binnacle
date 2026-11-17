@@ -321,12 +321,6 @@ Every vault setup script (`setup/shoyu/setup.sh`,
    and the block's text, never adds a duplicate row or marketplace, and
    never changes anything outside the block.
 
-To take a retired vault off the list (the plugin stays installed):
-
-```sh
-~/binnacle/setup/common/register-vault.sh --remove ~/binnacle
-```
-
 To install the plugin by hand on a machine with no vault setup, in Claude
 Code:
 

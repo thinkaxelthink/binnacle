@@ -611,16 +611,6 @@ cp "$CMD" "$T/cmd.malformed"
 check "vault list: refuses a malformed block" expect_fail reg three "$CH/v2" "personal: third"
 check "vault list: malformed block left as it was" cmp -s "$T/cmd.malformed" "$CMD"
 cp "$T/cmd.before" "$CMD"
-: >"$T/plugin.log"
-check "vault list: --remove drops one row" reg --remove "$CH/v1"
-check "vault list: one row left, the other vault's" bash -c 'test "$(grep -c "^- \*\*" "$1")" = 1 && grep -qF "$2" "$1"' _ "$CMD" "$v2"
-check "vault list: --remove runs no claude command" test ! -s "$T/plugin.log"
-check "vault list: --remove of the last row" reg --remove "$CH/v2"
-check "vault list: removing the last row drops the block" bash -c '! grep -q "binnacle:" "$1"' _ "$CMD"
-check "vault list: content outside the block survives removal" test "$(cat "$CMD")" = "$outside_before"
-mkdir -p "$T/emptyhome2"
-check "vault list: --remove without a list is a no-op" env HOME="$T/emptyhome2" "$reg_sh" --remove "$T/emptyhome2/v1"
-check "vault list: --remove without a list creates nothing" test ! -e "$T/emptyhome2/.claude"
 mkdir -p "$CH/dotfiles"
 mv "$CMD" "$CH/dotfiles/CLAUDE.md"
 ln -s "$CH/dotfiles/CLAUDE.md" "$CMD"
@@ -1525,6 +1515,11 @@ if [ "$template_rules" = yes ]; then
   check "work-brain setup: listed with its name and the work scope" grep -qxF -- \
     "- **binnacle-acme-engineering-jdoe** at \`$bp\`: work: company brain for the acme-engineering organization; never customer or member personal data, payment data, minors' names, health or waiver records, or credentials" \
     "$WH/.claude/CLAUDE.md"
+  : >"$T/plugin.log"
+  check "work-brain setup: marketplace from BINNACLE_OWNER, not --user" env BINNACLE_OWNER=someowner \
+    STUB_CLAUDE_PLUGIN_LOG="$T/plugin.log" HOME="$WH" "$B/setup/work-brain/setup.sh" --org acme-engineering --user jdoe >"$T/wb.out" 2>&1
+  check "work-brain setup: plugin marketplace added from <BINNACLE_OWNER>/binnacle-template" \
+    grep -qx "claude plugin marketplace add someowner/binnacle-template --scope user" "$T/plugin.log"
 
   # Collisions: nothing but a new folder or this brain's own vault.
   mkdir -p "$WH/foreign"

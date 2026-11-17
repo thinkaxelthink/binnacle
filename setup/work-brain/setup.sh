@@ -133,7 +133,7 @@ if ! git -C "$dir" rev-parse --verify -q 'HEAD^{commit}' >/dev/null; then
 fi
 
 bn_log "Claude Code: binnacle plugin and vault list"
-"$here/../common/register-vault.sh" "$name" "$dir" "$(wb_scope "$org_slug")" \
+BINNACLE_MARKETPLACE=$BINNACLE_MARKETPLACE "$here/../common/register-vault.sh" "$name" "$dir" "$(wb_scope "$org_slug")" \
   || bn_warn "the binnacle Claude Code plugin step failed (see above); re-run this script to retry"
 
 bn_log "tools"

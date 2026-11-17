@@ -2,7 +2,6 @@
 # Tell Claude Code on this machine about a Binnacle vault. Idempotent.
 #
 # Usage: setup/common/register-vault.sh NAME DIR SCOPE
-#        setup/common/register-vault.sh --remove DIR
 #
 #   NAME   the vault's name, e.g. its repository name
 #   DIR    where the vault lives on this machine
@@ -14,10 +13,7 @@
 # block of ~/.claude/CLAUDE.md, between <!-- binnacle:begin --> and
 # <!-- binnacle:end -->, creating the file or the block when absent. Rows
 # are keyed by DIR; nothing outside the block changes. The setup scripts
-# run it; run it by hand only to remove a vault.
-#
-#   --remove DIR  drop DIR's row, and the block once it lists no vault;
-#                 the plugin stays installed.
+# run it.
 #
 # Env: BINNACLE_CLAUDE (claude), BINNACLE_MARKETPLACE
 #      (<BINNACLE_OWNER>/binnacle-template, the repository that publishes
@@ -53,12 +49,6 @@ vault_path() { # DIR -> its absolute, symlink-free path
 md=$(bn_claude_md)
 case "${1:-}" in
   -h | --help) usage; exit 0 ;;
-  --remove)
-    [ "$#" -eq 2 ] || { usage >&2; exit 2; }
-    dir=$(vault_path "$2")
-    bn_vault_list_edit "$md" "$dir"
-    bn_ok "$dir is no longer listed in $md"
-    exit 0 ;;
 esac
 [ "$#" -eq 3 ] || { usage >&2; exit 2; }
 one_line NAME "$1"

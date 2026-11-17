@@ -123,9 +123,7 @@ It:
   `~/.claude/CLAUDE.md`, between `<!-- binnacle:begin -->` and
   `<!-- binnacle:end -->`. Nothing outside the block changes, and re-runs
   add no duplicate. A brain built before this step gets it from a re-run
-  of `setup.sh` (after `update.sh` brings the script in). To take the brain
-  off the list:
-  `~/binnacle-acme-engineering-jdoe/setup/common/register-vault.sh --remove ~/binnacle-acme-engineering-jdoe`;
+  of `setup.sh` (after `update.sh` brings the script in);
 - checks `git`, `claude`, `gh` and Obsidian (warnings only).
 
 ## In Obsidian

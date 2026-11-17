@@ -133,7 +133,7 @@ bn_set_git_identity() {
 # --- Claude Code: the binnacle plugin and the per-machine vault list ---------
 # The marketplace this template publishes (.claude-plugin/marketplace.json)
 # and the plugin in it. setup/common/register-vault.sh uses them.
-BINNACLE_MARKETPLACE=${BINNACLE_MARKETPLACE:-$BINNACLE_OWNER/${BINNACLE_TEMPLATE_REPO:-binnacle-template}}
+BINNACLE_MARKETPLACE=${BINNACLE_MARKETPLACE:-$BINNACLE_OWNER/binnacle-template}
 BN_MARKETPLACE_NAME=binnacle-template
 BN_PLUGIN=binnacle@$BN_MARKETPLACE_NAME
 # The scope line of a personal vault in the vault list.
@@ -179,14 +179,13 @@ When a question may be answered in one of these vaults:
 MD
 }
 
-# bn_vault_list_edit FILE DIR [ROW]: with ROW, add or refresh DIR's row in
-# the marked block of FILE (creating FILE or the block when absent); without
-# ROW, remove DIR's row, and the block once it lists no vault. Rows are keyed
-# by the vault path; the block's fixed text is rewritten each time; nothing
+# bn_vault_list_edit FILE DIR ROW: add or refresh DIR's row in the marked
+# block of FILE (creating FILE or the block when absent). Rows are keyed by
+# the vault path; the block's fixed text is rewritten each time; nothing
 # outside the block changes. Dies on a malformed block (a marker missing,
 # repeated or out of order), leaving FILE as it was.
 bn_vault_list_edit() {
-  local file=$1 dir=$2 row=${3:-} begins ends src tmp
+  local file=$1 dir=$2 row=$3 begins ends src tmp
   if [ -e "$file" ]; then
     begins=$(grep -cxF -- "$BN_BLOCK_BEGIN" "$file" || true)
     ends=$(grep -cxF -- "$BN_BLOCK_END" "$file" || true)
@@ -194,8 +193,6 @@ bn_vault_list_edit() {
       && [ "$(grep -nxF -- "$BN_BLOCK_BEGIN" "$file" | cut -d: -f1)" -gt "$(grep -nxF -- "$BN_BLOCK_END" "$file" | cut -d: -f1)" ]; }; then
       bn_die "$file has a malformed binnacle block (one '$BN_BLOCK_BEGIN' line, then one '$BN_BLOCK_END' line expected); fix it by hand and re-run"
     fi
-  elif [ -z "$row" ]; then
-    return 0
   else
     mkdir -p "$(dirname "$file")"
   fi
@@ -214,12 +211,11 @@ bn_vault_list_edit() {
         n = 0; done = 0
         for (i = 1; i <= nrows; i++) {
           if (key(rows[i]) == ENVIRON["BN_DIR"]) {
-            if (!done && ENVIRON["BN_ROW"] != "") out[++n] = ENVIRON["BN_ROW"]
+            if (!done) out[++n] = ENVIRON["BN_ROW"]
             done = 1
           } else out[++n] = rows[i]
         }
-        if (!done && ENVIRON["BN_ROW"] != "") out[++n] = ENVIRON["BN_ROW"]
-        if (n == 0) return
+        if (!done) out[++n] = ENVIRON["BN_ROW"]
         print ENVIRON["BN_BEGIN"]; print ENVIRON["BN_HEAD"]; print ""
         for (i = 1; i <= n; i++) print out[i]
         print ENVIRON["BN_TAIL"]; print ENVIRON["BN_END"]
@@ -229,7 +225,7 @@ bn_vault_list_edit() {
       state == 1 { if (key($0) != "") rows[++nrows] = $0; next }
       { print; last = $0; lines++ }
       END {
-        if (state == 0 && ENVIRON["BN_ROW"] != "") {
+        if (state == 0) {
           if (lines > 0 && last != "") print ""
           emit()
         }

@@ -66,8 +66,7 @@ vault's row (name, path, scope) in the marked block of
 `~/.claude/CLAUDE.md`, between `<!-- binnacle:begin -->` and
 `<!-- binnacle:end -->`, so every Claude session here knows the vault
 exists and how to use it. Nothing outside the block changes, and re-runs
-add no duplicate row or marketplace. To take a vault off the list:
-`~/binnacle/setup/common/register-vault.sh --remove ~/binnacle`.
+add no duplicate row or marketplace.
 
 You do not set `user.name` or `user.email`
 yourself; to use a different identity, re-run the script with the env vars:
