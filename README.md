@@ -325,7 +325,8 @@ To install the plugin by hand on a machine with no vault setup, in Claude
 Code:
 
 ```
-/plugin install binnacle --marketplace <owner>/binnacle-template
+/plugin marketplace add <owner>/binnacle-template
+/plugin install binnacle@binnacle-template
 ```
 
 ## How Binnacle protects you

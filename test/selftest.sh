@@ -1516,8 +1516,9 @@ if [ "$template_rules" = yes ]; then
     "- **binnacle-acme-engineering-jdoe** at \`$bp\`: work: company brain for the acme-engineering organization; never customer or member personal data, payment data, minors' names, health or waiver records, or credentials" \
     "$WH/.claude/CLAUDE.md"
   : >"$T/plugin.log"
-  check "work-brain setup: marketplace from BINNACLE_OWNER, not --user" env BINNACLE_OWNER=someowner \
-    STUB_CLAUDE_PLUGIN_LOG="$T/plugin.log" HOME="$WH" "$B/setup/work-brain/setup.sh" --org acme-engineering --user jdoe >"$T/wb.out" 2>&1
+  check "work-brain setup: marketplace from BINNACLE_OWNER, not --user" bash -c \
+    'env BINNACLE_OWNER=someowner STUB_CLAUDE_PLUGIN_LOG="$1" HOME="$2" "$3" --org acme-engineering --user jdoe >"$4" 2>&1' \
+    _ "$T/plugin.log" "$WH" "$B/setup/work-brain/setup.sh" "$T/wb.out"
   check "work-brain setup: plugin marketplace added from <BINNACLE_OWNER>/binnacle-template" \
     grep -qx "claude plugin marketplace add someowner/binnacle-template --scope user" "$T/plugin.log"
 
