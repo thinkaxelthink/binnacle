@@ -431,6 +431,7 @@ Code:
 
   ```sh
   git -C ~/src/binnacle pull
+  mkdir -p ~/binnacle-<user>/.githooks
   cp ~/src/binnacle/.githooks/pre-commit ~/binnacle-<user>/.githooks/pre-commit
   ~/src/binnacle/setup/common/install-hooks.sh ~/binnacle-<user>
   ```

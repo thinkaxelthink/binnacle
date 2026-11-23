@@ -47,8 +47,9 @@ jobs:
             "https://github.com/gitleaks/gitleaks/releases/download/v${version}/${tarball}"
           echo "${sha}  ${tarball}" | sha256sum -c -
           tar -xzf "$tarball" gitleaks
-          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+          mkdir -p "$HOME/.local/bin"
+          install -m 0755 gitleaks "$HOME/.local/bin/gitleaks"
           rm -f "$tarball" gitleaks
-          gitleaks version
+          "$HOME/.local/bin/gitleaks" version
       - name: Self-test
         run: test/selftest.sh
