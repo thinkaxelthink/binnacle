@@ -15,7 +15,7 @@ contract material, no credentials.
       `brew install git gitleaks`.
       If Homebrew on this Mac belongs to another macOS user, install
       gitleaks per-user instead: download the macOS archive and the
-      checksums file for the latest release from
+      checksums file for the release `secret-scan.yml` pins from
       github.com/gitleaks/gitleaks/releases, verify it with
       `shasum -a 256 -c --ignore-missing gitleaks_<version>_checksums.txt`,
       and put the `gitleaks` binary in `~/.local/bin`. The script below

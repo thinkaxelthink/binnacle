@@ -2,12 +2,20 @@
 # Binnacle pre-commit hook. Installed by setup/common/install-hooks.sh
 # (git config core.hooksPath .githooks).
 #
+# Runs on every commit made with the git binary: by hand, by a script, by
+# an agent, and by Obsidian Git's automatic commits on a Mac. (The iPhone
+# cannot run hooks; the GitHub Action is the only scan of its commits.)
+#
 # Rejects the commit when:
 #   1. any staged file is larger than 10 MB (BINNACLE_MAX_FILE_BYTES), or
 #   2. gitleaks finds a secret in the staged changes, or
-#   3. gitleaks cannot be found (fail closed: no scan, no commit).
-#      Run setup/common/install-hooks.sh after installing gitleaks; it
-#      records the binary's path so GUI git clients find it.
+#   3. gitleaks cannot be found or fails to run (fail closed: no scan, no
+#      commit). Run setup/common/install-hooks.sh after installing
+#      gitleaks; it records the binary's path so GUI git clients find it.
+#
+# The scan is `gitleaks git --pre-commit --staged` (gitleaks 8.19 and later;
+# `gitleaks protect --staged` is the deprecated older form) with the vault's
+# .gitleaks.toml, the same rules .github/workflows/secret-scan.yml uses.
 set -eu
 
 max_bytes=${BINNACLE_MAX_FILE_BYTES:-10485760}
@@ -56,7 +64,31 @@ gitleaks=$(find_gitleaks)
 [ -n "$gitleaks" ] \
   || fail "gitleaks not found - install it (gitleaks step in setup/<device>/CHECKLIST.md), then run setup/common/install-hooks.sh to record its path; refusing to commit unscanned"
 
-set -- git --pre-commit --staged --redact --no-banner --log-level warn
+# A finding exits 2 (--exit-code), so it is told apart from gitleaks failing
+# to run (exit 1). --verbose names the file, line and rule; --redact keeps
+# the secret itself out of the output; --no-color keeps Obsidian's error
+# notice readable.
+set -- git --pre-commit --staged --redact --no-banner --no-color --verbose \
+  --log-level warn --exit-code 2
 [ -f "$root/.gitleaks.toml" ] && set -- "$@" --config "$root/.gitleaks.toml"
-( cd "$root" && "$gitleaks" "$@" "$root" ) \
-  || fail "gitleaks flagged staged changes (or failed); remove the secret and rotate it"
+rc=0
+( cd "$root" && "$gitleaks" "$@" "$root" ) >&2 || rc=$?
+case $rc in
+  0) ;;
+  2)
+    cat >&2 <<'MSG'
+binnacle pre-commit: gitleaks found a secret in the staged changes (File,
+Line and RuleID above); nothing was committed.
+  - Remove the secret from the file, `git add` it again and commit. Treat
+    the secret as exposed: rotate it.
+  - A false positive: add its Fingerprint line to .gitleaksignore at the
+    vault root, stage that file and commit.
+  - To commit anyway, deliberately: git commit --no-verify. That skips this
+    local scan only (and the 10 MB cap); the secret-scan Action still scans
+    the push on GitHub, but a direct push to main is already on GitHub by
+    the time it reports.
+MSG
+    exit 1
+    ;;
+  *) fail "gitleaks failed to run (exit $rc, see above); refusing to commit unscanned" ;;
+esac

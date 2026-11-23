@@ -354,12 +354,24 @@ Code:
   finishes, `bin/binnacle-run` reverts anything it changed elsewhere and
   fails the run. `wiki/log.md` may only grow, and `wiki/people/` may change
   only while the people zone is on.
-- **Secret scan, twice.** On every Mac, a pre-commit hook runs gitleaks on
-  the staged changes and rejects any staged file over 10 MB. If it cannot
-  find gitleaks, it blocks the commit rather than skip the scan. The same
+- **Secret scan, twice.** On every Mac, a pre-commit hook
+  (`.githooks/pre-commit`) runs gitleaks on the staged changes, with the
+  same `.gitleaks.toml` rules as the Action, and rejects any staged file
+  over 10 MB. It runs on every commit made with git: yours, an agent's
+  captures, and Obsidian Git's automatic backups, so a secret is caught
+  before it leaves the Mac. On a finding it blocks the commit and names
+  the file, line and rule, never the secret (Obsidian Git shows the
+  message in its error notice, and the changes stay uncommitted until the
+  secret is gone). If it cannot find or run
+  gitleaks, it blocks the commit rather than skip the scan. The same
   gitleaks scan runs as a GitHub Action on every push and pull request, and
   `main` requires it before any pull request merges. An iPhone cannot run
   the hook, so the Action is the only check on its commits.
+- **Bypassing the hook.** `git commit --no-verify` skips the local scan
+  (and the size cap) for that commit only. Use it only for a reviewed
+  false positive you cannot list in `.gitleaksignore`: a direct push to
+  `main` still gets the Action's scan, but by then the commit is already
+  on GitHub.
 - **AI changes go through pull requests.** Your own captures push straight
   to `main`; the scan runs on those pushes and reports, but cannot block
   them. AI changes always arrive through a pull request that merges only on
@@ -410,6 +422,31 @@ Code:
   re-applied. It never touches `wiki/`, `raw/`, `soundings/` or `audit/`.
   Local only, it fast-forwards `main`; connected, it opens a pull request,
   without auto-merge, for you to review and merge.
+- **Adding the pre-commit scan to an existing vault.** A vault set up
+  before its Mac ran `setup/common/install-hooks.sh`, or set up by hand,
+  may commit unscanned. On each Mac that commits to the vault, install
+  gitleaks first (the gitleaks step of that Mac's checklist), then copy
+  the template's hook into the vault and install it, from an up-to-date
+  template checkout:
+
+  ```sh
+  git -C ~/src/binnacle pull
+  cp ~/src/binnacle/.githooks/pre-commit ~/binnacle-<user>/.githooks/pre-commit
+  ~/src/binnacle/setup/common/install-hooks.sh ~/binnacle-<user>
+  ```
+
+  `install-hooks.sh` checks that gitleaks can scan staged changes, warns
+  when its version differs from the one `secret-scan.yml` pins, points
+  `core.hooksPath` at `.githooks/`, and records the gitleaks path so
+  Obsidian, which runs git without your shell's PATH, finds it. It is safe
+  to re-run. It changes nothing and says why when the vault already uses
+  another hook: its own `core.hooksPath`, or an active hook in
+  `.git/hooks/`. Commit the copied hook so your other Macs get it with
+  their next pull (they still each run `install-hooks.sh` once):
+  `git -C ~/binnacle-<user> commit -m "Update pre-commit hook" .githooks/pre-commit`.
+  That commit is the first one the new hook scans. To check, stage a file
+  holding a made-up token such as `ghp_` followed by 36 letters and
+  digits: the commit is refused.
 - **A personal vault.** [TK: there is no documented update path.
   `update.sh` refuses personal vaults. How should a personal vault pick up
   template changes?]
