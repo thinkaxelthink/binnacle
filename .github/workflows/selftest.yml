@@ -12,6 +12,7 @@ on:
       - ".gitleaks.toml"
       - ".shellcheckrc"
       - ".github/workflows/selftest.yml"
+      - ".github/workflows/secret-scan.yml"
   pull_request:
     paths:
       - ".githooks/**"
@@ -21,6 +22,7 @@ on:
       - ".gitleaks.toml"
       - ".shellcheckrc"
       - ".github/workflows/selftest.yml"
+      - ".github/workflows/secret-scan.yml"
 
 permissions:
   contents: read
@@ -31,5 +33,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      # The real-gitleaks hook checks need gitleaks; install the version and
+      # checksum secret-scan.yml pins, read from that file so they never drift.
+      - name: Install gitleaks
+        run: |
+          set -eu
+          pin() { sed -n "s/^ *$1: *\([0-9a-f.]*\).*/\1/p" .github/workflows/secret-scan.yml | head -n 1; }
+          version=$(pin GITLEAKS_VERSION)
+          sha=$(pin GITLEAKS_SHA256)
+          test -n "$version" && test -n "$sha"
+          tarball="gitleaks_${version}_linux_x64.tar.gz"
+          curl -sSfL -o "$tarball" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${version}/${tarball}"
+          echo "${sha}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball" gitleaks
+          mkdir -p "$HOME/.local/bin"
+          install -m 0755 gitleaks "$HOME/.local/bin/gitleaks"
+          rm -f "$tarball" gitleaks
+          "$HOME/.local/bin/gitleaks" version
       - name: Self-test
         run: test/selftest.sh

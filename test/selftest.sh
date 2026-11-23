@@ -43,6 +43,7 @@ done
 
 # --- fixture: seed repo -> bare remote -> vault clone ----------------------------
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL="$T/gitconfig"
+unset GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS # no config injected by the caller's environment
 git config --global user.name selftest
 git config --global user.email selftest@example.invalid
 git config --global init.defaultBranch main
@@ -86,9 +87,13 @@ V=$T/vault
 git -C "$V" config core.hooksPath .githooks
 git -C "$V" config binnacle.role wiki-writer
 
-printf '#!/bin/sh\nexit 0\n' >"$T/stubs/gitleaks-pass"
-printf '#!/bin/sh\necho "leak found" >&2\nexit 1\n' >"$T/stubs/gitleaks-fail"
-printf '#!/bin/sh\n: >"$STUB_MARK"\nexit 0\n' >"$T/stubs/gitleaks-mark"
+# gitleaks stubs. Each answers `git --help` like gitleaks 8.19+ (install-hooks
+# checks for the staged scan); otherwise pass, fail to run, or mark the run.
+gl_help='[ "$1 $2" = "git --help" ] && { echo "  --pre-commit"; exit 0; }'
+printf '#!/bin/sh\n%s\nexit 0\n' "$gl_help" >"$T/stubs/gitleaks-pass"
+printf '#!/bin/sh\n%s\necho "leak found" >&2\nexit 1\n' "$gl_help" >"$T/stubs/gitleaks-fail"
+printf '#!/bin/sh\n%s\n: >"$STUB_MARK"\nexit 0\n' "$gl_help" >"$T/stubs/gitleaks-mark"
+printf '#!/bin/sh\nexit 0\n' >"$T/stubs/gitleaks-old"
 
 cat >"$T/stubs/gh" <<'EOF'
 #!/bin/sh
@@ -183,8 +188,9 @@ dd if=/dev/zero of="$V/raw/inbox/big.bin" bs=1048576 count=11 2>/dev/null
 git -C "$V" add raw/inbox/big.bin
 check "hook: rejects staged file over 10 MB" expect_fail git -C "$V" commit -qm big
 reset_vault
-check "hook: rejects when gitleaks flags" expect_fail env BINNACLE_GITLEAKS="$T/stubs/gitleaks-fail" \
-  bash -c 'printf x >"$1/soundings/a.md" && git -C "$1" add -A && git -C "$1" commit -qm a' _ "$V"
+check "hook: rejects when gitleaks fails to run" expect_fail env BINNACLE_GITLEAKS="$T/stubs/gitleaks-fail" \
+  bash -c 'printf x >"$1/soundings/a.md" && git -C "$1" add -A && git -C "$1" commit -qm a 2>"$2"' _ "$V" "$T/hook.err"
+check "hook: says it refused to commit unscanned" grep -q 'refusing to commit unscanned' "$T/hook.err"
 reset_vault
 check "hook: fails closed without gitleaks" expect_fail env BINNACLE_GITLEAKS="$T/missing" \
   bash -c 'printf x >"$1/soundings/b.md" && git -C "$1" add -A && git -C "$1" commit -qm b' _ "$V"
@@ -211,14 +217,31 @@ fi
 git -C "$V" config --unset binnacle.gitleaks
 reset_vault
 
-real_gl=$(PATH="$PATH:/opt/homebrew/bin:/usr/local/bin" command -v gitleaks || true)
+# A real gitleaks (CI installs the version secret-scan.yml pins). The fake
+# token is random, made up at run time, and matches gitleaks' github-pat rule.
+real_gl=$(PATH="$PATH:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin" command -v gitleaks || true)
 if [ -n "$real_gl" ]; then
   fake="ghp_$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 36)"
-  check "hook: real gitleaks rejects a GitHub token" expect_fail env BINNACLE_GITLEAKS="$real_gl" \
-    bash -c 'printf "token = %s\n" "$2" >"$1/soundings/t.md" && git -C "$1" add -A && git -C "$1" commit -qm t' _ "$V" "$fake"
+  real_commit() { # file, content -> stage and commit with the real gitleaks; stderr to $T/hook.err
+    env BINNACLE_GITLEAKS="$real_gl" bash -c 'printf "%s\n" "$3" >"$1/soundings/$2" && git -C "$1" add -A \
+      && git -C "$1" commit -qm "$2" 2>"$4"' _ "$V" "$1" "$2" "$T/hook.err"
+  }
+  check "hook: real gitleaks rejects a staged GitHub token" expect_fail real_commit t.md "token = $fake"
+  check "hook: real gitleaks: nothing committed" test -z "$(git -C "$V" log --oneline -- soundings/t.md)"
+  check "hook: real gitleaks names the file and rule" \
+    bash -c 'grep -q "File: *soundings/t.md" "$1" && grep -q "RuleID: *github-pat" "$1"' _ "$T/hook.err"
+  check "hook: real gitleaks keeps the secret out of the output" expect_fail grep -qF "$fake" "$T/hook.err"
+  check "hook: finding message explains --no-verify" grep -q 'git commit --no-verify' "$T/hook.err"
+  fp=$(sed -n 's/^Fingerprint: *//p' "$T/hook.err" | head -n 1)
+  printf '%s\n' "$fp" >"$V/.gitleaksignore"
+  check "hook: real gitleaks honours .gitleaksignore" real_commit t.md "token = $fake"
   reset_vault
-  check "hook: real gitleaks accepts a clean note" env BINNACLE_GITLEAKS="$real_gl" \
-    bash -c 'printf "just a thought\n" >"$1/soundings/c.md" && git -C "$1" add -A && git -C "$1" commit -qm c' _ "$V"
+  [ "$(git -C "$V" log -1 --format=%s)" != t.md ] || git -C "$V" reset -q --hard HEAD~1
+  check "hook: real gitleaks accepts a clean note" real_commit c.md "just a thought"
+  check "hook: real gitleaks scans only staged changes" bash -c \
+    'printf "token = %s\n" "$2" >"$1/soundings/unstaged.md" && printf "more\n" >>"$1/soundings/c.md" \
+      && git -C "$1" add soundings/c.md && BINNACLE_GITLEAKS="$3" git -C "$1" commit -qm c2' _ "$V" "$fake" "$real_gl"
+  reset_vault
 else
   printf 'skip   real gitleaks checks (not installed)\n'
 fi
@@ -549,6 +572,37 @@ check "install-hooks: records the gitleaks path" \
 check "install-hooks: updates the recorded path when gitleaks moves" bash -c \
   'BINNACLE_GITLEAKS="$3/gitleaks-mark" "$1" "$2" && test "$(git -C "$2" config binnacle.gitleaks)" = "$3/gitleaks-mark"' \
   _ "$repo/setup/common/install-hooks.sh" "$V" "$stubs_phys"
+check "install-hooks: warns when gitleaks differs from the secret-scan.yml pin" bash -c \
+  '"$1" "$2" 2>&1 | grep -q "secret-scan.yml pins"' _ "$repo/setup/common/install-hooks.sh" "$V"
+check "install-hooks: refuses a gitleaks without the staged scan" expect_fail env \
+  BINNACLE_GITLEAKS="$T/stubs/gitleaks-old" "$repo/setup/common/install-hooks.sh" "$V"
+nv=$T/nogitleaksvault
+git clone -q "$T/remote.git" "$nv"
+check "install-hooks: fails without gitleaks" expect_fail env BINNACLE_GITLEAKS="$T/missing" \
+  "$repo/setup/common/install-hooks.sh" "$nv"
+check "install-hooks: without gitleaks still installs the blocking hook" \
+  test "$(git -C "$nv" config core.hooksPath)" = .githooks
+check "install-hooks: without gitleaks the next commit is refused" expect_fail \
+  env BINNACLE_GITLEAKS="$T/missing" bash -c 'printf x >"$1/n.md" && git -C "$1" add n.md && git -C "$1" commit -qm n' _ "$nv"
+hv=$T/hooksvault
+git clone -q "$T/remote.git" "$hv"
+printf '#!/bin/sh\nexit 0\n' >"$hv/.git/hooks/pre-commit"
+chmod +x "$hv/.git/hooks/pre-commit"
+check "install-hooks: refuses to switch off an existing .git/hooks hook" expect_fail \
+  "$repo/setup/common/install-hooks.sh" "$hv"
+check "install-hooks: left core.hooksPath unset" expect_fail git -C "$hv" config --get core.hooksPath
+check "install-hooks: names the hook it would switch off by full path" bash -c \
+  '"$1" "$2" 2>&1 | grep -qF "$(cd "$2/.git/hooks" && pwd -P)/pre-commit"' _ "$repo/setup/common/install-hooks.sh" "$hv"
+rm "$hv/.git/hooks/pre-commit"
+git -C "$hv" config core.hooksPath custom-hooks
+check "install-hooks: refuses to replace another core.hooksPath" expect_fail \
+  "$repo/setup/common/install-hooks.sh" "$hv"
+check "install-hooks: kept the other core.hooksPath" test "$(git -C "$hv" config core.hooksPath)" = custom-hooks
+git -C "$hv" config --unset core.hooksPath
+check "install-hooks: installs once the old hook is gone" "$repo/setup/common/install-hooks.sh" "$hv"
+check "install-hooks: warns when core.hooksPath is overridden from outside the vault" bash -c \
+  'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/elsewhere "$1" "$2" 2>&1 | grep -q "overridden"' \
+  _ "$repo/setup/common/install-hooks.sh" "$hv"
 check "github --dry-run: changes nothing, names the check" bash -c \
   'BINNACLE_OWNER=example-user "$1" --dry-run | grep -q "\"context\": \"gitleaks\""' _ "$repo/setup/github/setup.sh"
 
