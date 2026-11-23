@@ -29,7 +29,7 @@ vault=$(git -C "$vault" rev-parse --show-toplevel 2>/dev/null) \
 
 bn_log "installing hooks in $vault"
 [ -f "$vault/.githooks/pre-commit" ] || bn_die "$vault/.githooks/pre-commit is missing"
-# Check everything before changing anything.
+# Check for hook conflicts before changing anything.
 hooks_path=$(git -C "$vault" config --local --get core.hooksPath || true)
 case $hooks_path in
   .githooks | "") ;;
@@ -48,23 +48,6 @@ if [ -z "$hooks_path" ]; then
     || bn_die "active hooks:$active. Setting core.hooksPath=.githooks would silently switch them off (git-lfs hooks included), so nothing was changed. To fix, for each hook either move its logic into $vault/.githooks/ (for example call it from .githooks/<hook-name>), or switch it off: mv <path> <path>.disabled. Then re-run your setup script, or setup/common/install-hooks.sh \"$vault\""
 fi
 
-gl=$(bn_find_gitleaks)
-if [ -z "$gl" ]; then
-  bn_die "gitleaks not found - install it (gitleaks step in setup/<device>/CHECKLIST.md: Homebrew, or the official release binary in ~/.local/bin), then re-run this script; the hook blocks every commit until then"
-fi
-gl_version=$("$gl" version 2>/dev/null || true)
-gl_version=${gl_version#v}
-"$gl" git --help 2>/dev/null | grep -q -- '--pre-commit' \
-  || bn_die "gitleaks at $gl (version ${gl_version:-unknown}) has no 'gitleaks git --pre-commit --staged' scan (added in gitleaks 8.19); upgrade it, then re-run this script"
-bn_ok "gitleaks found: $gl (${gl_version:-unknown version})"
-pinned=$(sed -n 's/^[[:space:]]*GITLEAKS_VERSION:[[:space:]]*\([0-9][0-9.]*\).*/\1/p' \
-  "$vault/.github/workflows/secret-scan.yml" 2>/dev/null | head -n 1)
-if [ -n "$pinned" ] && [ "$gl_version" != "$pinned" ]; then
-  bn_warn "gitleaks is ${gl_version:-of unknown version}, but .github/workflows/secret-scan.yml pins $pinned; the hook still scans, but the two may disagree on what counts as a secret. Install $pinned for an exact match"
-elif [ -n "$pinned" ]; then
-  bn_ok "gitleaks $gl_version matches the version secret-scan.yml pins"
-fi
-
 chmod +x "$vault/.githooks/pre-commit"
 if [ "$hooks_path" = .githooks ]; then
   bn_ok "core.hooksPath already .githooks"
@@ -75,6 +58,23 @@ fi
 effective=$(git -C "$vault" config --get core.hooksPath || true)
 [ "$effective" = .githooks ] \
   || bn_warn "core.hooksPath is overridden to '$effective' from outside the vault's config ($(git -C "$vault" config --show-origin --get core.hooksPath | cut -f1)); .githooks/pre-commit does not run while that is set"
+
+gl=$(bn_find_gitleaks)
+if [ -z "$gl" ]; then
+  bn_die "gitleaks not found - install it (gitleaks step in setup/<device>/CHECKLIST.md: Homebrew, or the official release binary in ~/.local/bin), then re-run this script; the hook blocks every commit until then"
+fi
+gl_version=$("$gl" version 2>/dev/null || true)
+gl_version=${gl_version#v}
+"$gl" git --help 2>/dev/null | grep -q -- '--pre-commit' \
+  || bn_die "gitleaks at $gl (version ${gl_version:-unknown}) has no 'gitleaks git --pre-commit --staged' scan (added in gitleaks 8.19); upgrade it, then re-run this script; the hook blocks every commit until then"
+bn_ok "gitleaks found: $gl (${gl_version:-unknown version})"
+pinned=$(sed -n 's/^[[:space:]]*GITLEAKS_VERSION:[[:space:]]*\([0-9][0-9.]*\).*/\1/p' \
+  "$vault/.github/workflows/secret-scan.yml" 2>/dev/null | head -n 1)
+if [ -n "$pinned" ] && [ "$gl_version" != "$pinned" ]; then
+  bn_warn "gitleaks is ${gl_version:-of unknown version}, but .github/workflows/secret-scan.yml pins $pinned; the hook still scans, but the two may disagree on what counts as a secret. Install $pinned for an exact match"
+elif [ -n "$pinned" ]; then
+  bn_ok "gitleaks $gl_version matches the version secret-scan.yml pins"
+fi
 
 if [ "$(git -C "$vault" config --get binnacle.gitleaks || true)" = "$gl" ]; then
   bn_ok "binnacle.gitleaks already $gl"

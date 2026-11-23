@@ -576,6 +576,14 @@ check "install-hooks: warns when gitleaks differs from the secret-scan.yml pin" 
   '"$1" "$2" 2>&1 | grep -q "secret-scan.yml pins"' _ "$repo/setup/common/install-hooks.sh" "$V"
 check "install-hooks: refuses a gitleaks without the staged scan" expect_fail env \
   BINNACLE_GITLEAKS="$T/stubs/gitleaks-old" "$repo/setup/common/install-hooks.sh" "$V"
+nv=$T/nogitleaksvault
+git clone -q "$T/remote.git" "$nv"
+check "install-hooks: fails without gitleaks" expect_fail env BINNACLE_GITLEAKS="$T/missing" \
+  "$repo/setup/common/install-hooks.sh" "$nv"
+check "install-hooks: without gitleaks still installs the blocking hook" \
+  test "$(git -C "$nv" config core.hooksPath)" = .githooks
+check "install-hooks: without gitleaks the next commit is refused" expect_fail \
+  env BINNACLE_GITLEAKS="$T/missing" bash -c 'printf x >"$1/n.md" && git -C "$1" add n.md && git -C "$1" commit -qm n' _ "$nv"
 hv=$T/hooksvault
 git clone -q "$T/remote.git" "$hv"
 printf '#!/bin/sh\nexit 0\n' >"$hv/.git/hooks/pre-commit"
