@@ -440,9 +440,17 @@ Code:
   when its version differs from the one `secret-scan.yml` pins, points
   `core.hooksPath` at `.githooks/`, and records the gitleaks path so
   Obsidian, which runs git without your shell's PATH, finds it. It is safe
-  to re-run. It changes nothing and says why when the vault already uses
+  to re-run. It refuses, changing nothing, when the vault already uses
   another hook: its own `core.hooksPath`, or an active hook in
-  `.git/hooks/`. Commit the copied hook so your other Macs get it with
+  `.git/hooks/` (git-lfs installs some), because `core.hooksPath` would
+  silently switch those off. The shoyu, workmac and work-brain setup
+  scripts call it, so they refuse the same way. To resolve it, for an
+  active hook, move its logic into the vault's `.githooks/` (for example
+  call it from `.githooks/<hook-name>`) or switch it off with
+  `mv <path> <path>.disabled`; for another `core.hooksPath`, call
+  `.githooks/pre-commit` from the pre-commit hook in that directory, or
+  run `git -C ~/binnacle-<user> config --unset core.hooksPath`. Then
+  re-run the setup script, or `install-hooks.sh`. Commit the copied hook so your other Macs get it with
   their next pull (they still each run `install-hooks.sh` once):
   `git -C ~/binnacle-<user> commit -m "Update pre-commit hook" .githooks/pre-commit`.
   That commit is the first one the new hook scans. To check, stage a file

@@ -583,6 +583,8 @@ chmod +x "$hv/.git/hooks/pre-commit"
 check "install-hooks: refuses to switch off an existing .git/hooks hook" expect_fail \
   "$repo/setup/common/install-hooks.sh" "$hv"
 check "install-hooks: left core.hooksPath unset" expect_fail git -C "$hv" config --get core.hooksPath
+check "install-hooks: names the hook it would switch off by full path" bash -c \
+  '"$1" "$2" 2>&1 | grep -qF "$(cd "$2/.git/hooks" && pwd -P)/pre-commit"' _ "$repo/setup/common/install-hooks.sh" "$hv"
 rm "$hv/.git/hooks/pre-commit"
 git -C "$hv" config core.hooksPath custom-hooks
 check "install-hooks: refuses to replace another core.hooksPath" expect_fail \

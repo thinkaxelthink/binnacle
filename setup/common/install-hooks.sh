@@ -33,7 +33,7 @@ bn_log "installing hooks in $vault"
 hooks_path=$(git -C "$vault" config --local --get core.hooksPath || true)
 case $hooks_path in
   .githooks | "") ;;
-  *) bn_die "core.hooksPath is already '$hooks_path' in $vault; not replacing it. Either call .githooks/pre-commit from the pre-commit hook there, or unset it (git -C \"$vault\" config --unset core.hooksPath) and re-run; nothing was changed" ;;
+  *) bn_die "core.hooksPath is already '$hooks_path' in $vault; not replacing it, nothing was changed. To fix, either call .githooks/pre-commit from the pre-commit hook in '$hooks_path' (add the line: \"\$(git rev-parse --show-toplevel)/.githooks/pre-commit\" || exit 1), or unset it: git -C \"$vault\" config --unset core.hooksPath. Then re-run your setup script, or setup/common/install-hooks.sh \"$vault\"" ;;
 esac
 if [ -z "$hooks_path" ]; then
   # core.hooksPath switches off every hook in the default hooks directory.
@@ -42,10 +42,10 @@ if [ -z "$hooks_path" ]; then
   for h in "$default_hooks"/*; do
     [ -f "$h" ] && [ -x "$h" ] || continue
     case $h in *.sample) continue ;; esac
-    active="$active ${h##*/}"
+    active="$active $h"
   done
   [ -z "$active" ] \
-    || bn_die "$default_hooks has active hooks ($active ) that core.hooksPath=.githooks would switch off; move them aside, or merge them into .githooks/, then re-run; nothing was changed"
+    || bn_die "active hooks:$active. Setting core.hooksPath=.githooks would silently switch them off (git-lfs hooks included), so nothing was changed. To fix, for each hook either move its logic into $vault/.githooks/ (for example call it from .githooks/<hook-name>), or switch it off: mv <path> <path>.disabled. Then re-run your setup script, or setup/common/install-hooks.sh \"$vault\""
 fi
 
 gl=$(bn_find_gitleaks)
