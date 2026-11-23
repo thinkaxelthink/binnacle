@@ -450,9 +450,15 @@ Code:
   `mv <path> <path>.disabled`; for another `core.hooksPath`, call
   `.githooks/pre-commit` from the pre-commit hook in that directory, or
   run `git -C ~/binnacle-<user> config --unset core.hooksPath`. Then
-  re-run the setup script, or `install-hooks.sh`. Commit the copied hook so your other Macs get it with
-  their next pull (they still each run `install-hooks.sh` once):
-  `git -C ~/binnacle-<user> commit -m "Update pre-commit hook" .githooks/pre-commit`.
+  re-run the setup script, or `install-hooks.sh`. Commit the copied hook
+  so your other Macs get it with their next pull (they still each run
+  `install-hooks.sh` once):
+
+  ```sh
+  git -C ~/binnacle-<user> add .githooks/pre-commit
+  git -C ~/binnacle-<user> commit -m "Update pre-commit hook" .githooks/pre-commit
+  ```
+
   That commit is the first one the new hook scans. To check, stage a file
   holding a made-up token such as `ghp_` followed by 36 letters and
   digits: the commit is refused.
